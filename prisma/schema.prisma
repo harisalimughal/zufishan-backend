@@ -1,0 +1,20 @@
+// Prisma schema — see https://pris.ly/d/prisma-schema
+// Models go below the generator/datasource blocks. One model per domain
+// (User, Course, Assignment, ...), grouped and commented per module as the
+// team adds them. Run `npm run prisma:migrate` after adding/changing models.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// model User {
+//   id        String   @id @default(cuid())
+//   email     String   @unique
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
