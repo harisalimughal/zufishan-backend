@@ -18,9 +18,45 @@ in the same shape from day one. Read this whole file before writing your first m
 
 ## Getting started
 
+### 1. Install PostgreSQL locally
+
+Each contributor runs their own local PostgreSQL instance — no shared dev database, no
+Docker required.
+
+- Install PostgreSQL: https://www.postgresql.org/download/ (pick your OS). pgAdmin is
+  included on Windows/Mac installers and is a fine GUI if you want one instead of `psql`.
+- Once installed, create a database for this project — pick whichever you're comfortable
+  with, both do the same thing:
+
+  **Option A — pgAdmin (GUI):** open pgAdmin → connect to your local server → right-click
+  **Databases** → **Create** → **Database...** → name it `ranenla_dev` → Save.
+
+  **Option B — psql (CLI):**
+
+  ```bash
+  psql -U postgres
+  CREATE DATABASE ranenla_dev;
+  ```
+
+- Note the username/password you set during install (default user is usually `postgres`)
+  — you'll need them for `DATABASE_URL` below.
+
+### 2. Install deps and configure env
+
 ```bash
 npm install
-cp .env.example .env        # fill in DATABASE_URL, JWT_SECRET, ...
+cp .env.example .env        # set DATABASE_URL to your local DB, fill in JWT_SECRET, ...
+```
+
+`DATABASE_URL` should look like:
+
+```
+DATABASE_URL="postgresql://postgres:<your-password>@localhost:5432/ranenla_dev?schema=public"
+```
+
+### 3. Run migrations and start the API
+
+```bash
 npm run prisma:generate
 npm run prisma:migrate      # once models exist in prisma/schema.prisma
 npm run dev                 # starts the API with hot reload
@@ -52,25 +88,6 @@ Supporting folders that sit alongside this pipeline:
 - **`utils/`** — small stateless helpers (`ApiError`, `asyncHandler`, `logger`) used across
   modules.
 - **`types/`** — shared TypeScript types and Express type augmentation.
-
-### Do we need a repository layer?
-
-**Yes — keep it, but keep it thin.** Prisma Client already *is* a data-access layer, so the
-repository here isn't hiding SQL — it's a 1:1 wrapper per model. The payoff for a team of
-interns:
-
-- **One place per model for queries.** If the `User` query logic needs to change (a new
-  `include`, a soft-delete filter), it changes in one file instead of every service that
-  touched `prisma.user.*`.
-- **Services stay testable.** Mock the repository, test business logic without a real
-  database.
-- **A clear line for code review.** "Is this a query or a business rule?" maps directly to
-  "repository or service?" — useful when reviewing intern PRs.
-- **Swappable later.** Unlikely to happen, but if the ORM ever changes, only the repository
-  layer is rewritten.
-
-The cost is a bit of boilerplate (an extra file per module), which is worth it here because
-consistency across many contributors matters more than saving a few lines.
 
 ## Project structure
 
