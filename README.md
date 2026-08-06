@@ -8,13 +8,13 @@ in the same shape from day one. Read this whole file before writing your first m
 
 ## Stack
 
-| Layer      | Choice                          |
-| ---------- | -------------------------------- |
-| Runtime    | Node.js 20+, TypeScript          |
-| Web        | Express 5                        |
-| Database   | PostgreSQL                       |
-| ORM        | Prisma                           |
-| Lint/format| ESLint (flat config) + Prettier  |
+| Layer       | Choice                          |
+| ----------- | ------------------------------- |
+| Runtime     | Node.js 20+, TypeScript         |
+| Web         | Express 5                       |
+| Database    | PostgreSQL                      |
+| ORM         | Prisma                          |
+| Lint/format | ESLint (flat config) + Prettier |
 
 ## Getting started
 
@@ -71,12 +71,12 @@ ever talks to the one directly below it.
 routes  ->  controllers  ->  services  ->  repositories  ->  Prisma  ->  PostgreSQL
 ```
 
-| Layer            | Responsibility                                                              | Must NOT do                              |
-| ----------------- | ---------------------------------------------------------------------------- | ----------------------------------------- |
-| **routes**        | Map `verb + path` to a controller method, attach middleware.                 | Business logic, DB access                 |
-| **controllers**   | Read `req`, call one service method, shape the `res` (status + JSON).        | Business logic, Prisma calls              |
-| **services**      | Business logic, validation rules, orchestration across repositories.         | Touch `req`/`res`, import Prisma directly |
-| **repositories**  | One Prisma call per method (`findMany`, `create`, `update`, ...). Nothing else. | Business rules, conditionals beyond query filters |
+| Layer            | Responsibility                                                                  | Must NOT do                                       |
+| ---------------- | ------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **routes**       | Map `verb + path` to a controller method, attach middleware.                    | Business logic, DB access                         |
+| **controllers**  | Read `req`, call one service method, shape the `res` (status + JSON).           | Business logic, Prisma calls                      |
+| **services**     | Business logic, validation rules, orchestration across repositories.            | Touch `req`/`res`, import Prisma directly         |
+| **repositories** | One Prisma call per method (`findMany`, `create`, `update`, ...). Nothing else. | Business rules, conditionals beyond query filters |
 
 Supporting folders that sit alongside this pipeline:
 
@@ -165,15 +165,15 @@ Suggested first modules, matching the frontend's existing screens: `auth`, `user
 
 ## Scripts
 
-| Command                  | What it does                                  |
-| ------------------------- | ---------------------------------------------- |
-| `npm run dev`             | Start the API with hot reload (`tsx watch`)    |
-| `npm run build`           | Compile TypeScript to `dist/`                  |
-| `npm start`               | Run the compiled build                         |
-| `npm run lint` / `lint:fix` | ESLint check / autofix                       |
-| `npm run format`          | Prettier — format the whole repo               |
-| `npm run typecheck`       | `tsc --noEmit`                                 |
-| `npm run prisma:generate` | Regenerate the Prisma client                   |
-| `npm run prisma:migrate`  | Create + apply a dev migration                 |
-| `npm run prisma:studio`   | Open Prisma Studio (DB GUI)                    |
-| `npm run prisma:seed`     | Run `prisma/seed.ts`                           |
+| Command                     | What it does                                |
+| --------------------------- | ------------------------------------------- |
+| `npm run dev`               | Start the API with hot reload (`tsx watch`) |
+| `npm run build`             | Compile TypeScript to `dist/`               |
+| `npm start`                 | Run the compiled build                      |
+| `npm run lint` / `lint:fix` | ESLint check / autofix                      |
+| `npm run format`            | Prettier — format the whole repo            |
+| `npm run typecheck`         | `tsc --noEmit`                              |
+| `npm run prisma:generate`   | Regenerate the Prisma client                |
+| `npm run prisma:migrate`    | Create + apply a dev migration              |
+| `npm run prisma:studio`     | Open Prisma Studio (DB GUI)                 |
+| `npm run prisma:seed`       | Run `prisma/seed.ts`                        |
