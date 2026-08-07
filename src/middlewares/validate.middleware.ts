@@ -4,3 +4,10 @@
 //
 // TODO:
 // - export const validate = (schema: ZodSchema) => (req, res, next) => {...}
+
+import { Request, Response, NextFunction } from "express";
+
+export const validate =
+  (_schema: unknown) => (_req: Request, _res: Response, next: NextFunction) => {
+    next();
+  };
