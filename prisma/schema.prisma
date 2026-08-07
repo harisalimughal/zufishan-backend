@@ -1,7 +1,4 @@
-// Prisma schema — see https://pris.ly/d/prisma-schema
-// Models go below the generator/datasource blocks. One model per domain
-// (User, Course, Assignment, ...), grouped and commented per module as the
-// team adds them. Run `npm run prisma:migrate` after adding/changing models.
+// Prisma schema — Ranenla Platform Data Engine
 
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +9,359 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// model User {
-//   id        String   @id @default(cuid())
-//   email     String   @unique
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+// ==========================================
+// ENUMS & CONSTANTS
+// ==========================================
+
+enum Role {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+}
+
+enum SubmissionStatus {
+  PENDING
+  GRADED
+}
+
+enum EventType {
+  CLASS
+  ASSIGNMENT
+  EXAM
+  AI_SESSION
+  OTHER
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum ActivityType {
+  QUIZ_COMPLETE
+  NOTE_UPLOAD
+  BADGE_EARNED
+  LESSON_COMPLETE
+  ASSIGNMENT_SUBMITTED
+}
+
+// ==========================================
+// 1. USER & AUTH MODULE
+// ==========================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  avatarUrl    String?
+  role         Role     @default(STUDENT)
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  preferences      UserPreferences?
+  refreshTokens    RefreshToken[]
+  enrollments      Enrollment[]
+  attendanceLogs   AttendanceLog[]
+  streak           UserStreak?
+  submissions      Submission[]
+  achievements     UserAchievement[]
+  calendarEvents   CalendarEvent[]
+  aiChatMessages   AiChatMessage[]
+  activityLogs     ActivityLog[]
+  sentMessages     Message[]         @relation("SentMessages")
+  receivedMessages Message[]         @relation("ReceivedMessages")
+  groupMessages    GroupMessage[]
+
+  @@map("users")
+}
+
+model UserPreferences {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                String   @default("dark")
+  language             String   @default("en")
+  notificationsEnabled Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ==========================================
+// 2. COURSE & LEARNING MODULE
+// ==========================================
+
+model Course {
+  id             String   @id @default(cuid())
+  title          String
+  detailSlug     String   @unique // e.g. "database-101", "python-programming"
+  description    String
+  instructorName String   // e.g. "Prof. Lucas (AI)"
+  category       String   // e.g. "Computer Science", "AI Engineering"
+  level          String   @default("Beginner")
+  bannerUrl      String?  // e.g. "/course-database.png"
+  icon           String?  // e.g. "🗄️", "🌐", "</>"
+  iconBg         String?  // e.g. "bg-purple-900/30"
+  rating         Float    @default(4.8)
+  totalStudents  Int      @default(0)
+  liveClassToday Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  modules        CourseModule[]
+  enrollments    Enrollment[]
+  attendanceLogs AttendanceLog[]
+  assignments    Assignment[]
+  calendarEvents CalendarEvent[]
+  resources      CourseResource[]
+
+  @@map("courses")
+}
+
+model CourseModule {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons Lesson[]
+
+  @@map("course_modules")
+}
+
+model Lesson {
+  id        String       @id @default(cuid())
+  moduleId  String
+  module    CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title     String
+  videoUrl  String?
+  duration  String       @default("15 mins")
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("lessons")
+}
+
+model CourseResource {
+  id         String   @id @default(cuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title      String   // e.g. "Database Normalization.pdf"
+  fileUrl    String
+  fileType   String   @default("pdf")
+  uploadedAt DateTime @default(now())
+
+  @@map("course_resources")
+}
+
+model Enrollment {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progressPercent Float            @default(0.0) // 0 - 100 %
+  status          EnrollmentStatus @default(ACTIVE)
+  enrolledAt      DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+// ==========================================
+// 3. ATTENDANCE & STREAK MODULE
+// ==========================================
+
+model AttendanceLog {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    AttendanceStatus @default(PRESENT)
+  timeSlot  String?          // e.g. "09:00 AM - 10:30 AM"
+  topic     String?          // e.g. "SQL Joins & Indexing"
+  createdAt DateTime         @default(now())
+
+  @@map("attendance_logs")
+}
+
+model UserStreak {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak  Int       @default(0) // e.g. 7 Days
+  bestStreak     Int       @default(0) // e.g. 18 Days
+  lastActiveDate DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@map("user_streaks")
+}
+
+// ==========================================
+// 4. ASSIGNMENTS & SUBMISSIONS MODULE
+// ==========================================
+
+model Assignment {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  dueDate     DateTime
+  totalPoints Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions Submission[]
+
+  @@map("assignments")
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content      String?
+  fileUrl      String?
+  status       SubmissionStatus @default(PENDING)
+  score        Int?
+  feedback     String?
+  submittedAt  DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, userId])
+  @@map("submissions")
+}
+
+// ==========================================
+// 5. ACHIEVEMENTS, CALENDAR & ACTIVITY FEED
+// ==========================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  title       String   // e.g. "Perfect Attendance"
+  description String
+  icon        String   // e.g. "Award", "Flame", "Star"
+  category    String   @default("General")
+  xpPoints    Int      @default(50)
+  createdAt   DateTime @default(now())
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model CalendarEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  title     String    // e.g. "Database 101"
+  startTime DateTime
+  endTime   DateTime
+  type      EventType @default(CLASS)
+  location  String?
+  isLive    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@map("calendar_events")
+}
+
+model ActivityLog {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String       // e.g. 'You completed "SQL Basics Quiz"'
+  subtitle  String?      // e.g. "Database Normalization.pdf"
+  type      ActivityType @default(LESSON_COMPLETE)
+  createdAt DateTime     @default(now())
+
+  @@map("activity_logs")
+}
+
+// ==========================================
+// 6. AI TUTOR & MESSAGING MODULE
+// ==========================================
+
+model AiChatMessage {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      MessageRole @default(USER)
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@map("ai_chat_messages")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("messages")
+}
+
+model GroupMessage {
+  id        String   @id @default(cuid())
+  channelId String
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("group_messages")
+}
