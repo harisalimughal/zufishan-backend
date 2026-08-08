@@ -9,18 +9,24 @@ import routes from './routes'
 import { errorHandler, notFound } from './middlewares/error.middleware'
 import { logger } from './utils/logger'
 import { env } from './config/env'
+import { prisma } from './config/prisma'  // ✅ Static import instead of dynamic
 
 export const app: Express = express()
 
-// Security
+// Security middleware
 app.use(helmet())
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}))
 
+// CORS - Allow all origins
+app.use(
+  cors({
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+)
+
+// Rate limiting - 100 requests per 15 minutes
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -33,7 +39,7 @@ const limiter = rateLimit({
 })
 app.use('/api', limiter)
 
-// Parsing
+// Request parsing
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser())
@@ -41,22 +47,27 @@ app.use(compression())
 
 // Logging
 if (env.NODE_ENV !== 'test') {
-  app.use(morgan('combined', {
-    stream: {
-      write: (message: string) => logger.info(message.trim()),
-    },
-  }))
+  app.use(
+    morgan('combined', {
+      stream: {
+        write: (message: string) => logger.info(message.trim()),
+      },
+    })
+  )
 }
 
-// Request logging
+// Custom request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
-  logger.debug({
-    method: req.method,
-    path: req.path,
-    query: req.query,
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
-  }, 'Incoming request')
+  logger.debug(
+    {
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    },
+    'Incoming request'
+  )
   next()
 })
 
@@ -74,9 +85,10 @@ app.get('/health', (req: Request, res: Response) => {
   })
 })
 
+// Readiness check - Fixed: using static import
 app.get('/ready', async (req: Request, res: Response) => {
   try {
-    const { prisma } = await import('./config/prisma')
+    // ✅ Use prisma directly from static import
     await prisma.$queryRaw`SELECT 1`
     res.status(200).json({
       success: true,
@@ -84,6 +96,7 @@ app.get('/ready', async (req: Request, res: Response) => {
       database: 'connected',
     })
   } catch (error) {
+    logger.error({ error }, 'Readiness check failed')
     res.status(503).json({
       success: false,
       message: 'Server is not ready',
@@ -92,6 +105,7 @@ app.get('/ready', async (req: Request, res: Response) => {
   }
 })
 
+// Root endpoint
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,

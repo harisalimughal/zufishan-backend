@@ -1,9 +1,22 @@
 ﻿import { authRepository } from '../repositories/auth.repository'
 import { ApiError } from '../utils/apiError'
 import { comparePassword, hashPassword } from '../utils/password'
-import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt'
+import { generateToken, generateRefreshToken, verifyRefreshToken, generateTokenWithExpiry } from '../utils/jwt'
+
+// Activity types enum (matching Prisma schema)
+const ActivityType = {
+  LOGIN: 'LOGIN',
+  LOGOUT: 'LOGOUT',
+  TOKEN_REFRESH: 'TOKEN_REFRESH',
+  PASSWORD_CHANGE: 'PASSWORD_CHANGE',
+  PASSWORD_RESET_REQUEST: 'PASSWORD_RESET_REQUEST',
+  PASSWORD_RESET_COMPLETE: 'PASSWORD_RESET_COMPLETE',
+} as const
 
 export const authService = {
+  /**
+   * Register a new user
+   */
   register: async (input: {
     email: string
     password: string
@@ -17,7 +30,6 @@ export const authService = {
 
     const hashedPassword = await hashPassword(input.password)
 
-    // ONLY STUDENT - NO ADMIN REGISTRATION
     const user = await authRepository.createUser({
       email: input.email,
       passwordHash: hashedPassword,
@@ -29,6 +41,9 @@ export const authService = {
     return { user: userWithoutPassword }
   },
 
+  /**
+   * Login user
+   */
   login: async (email: string, password: string, ipAddress?: string, userAgent?: string) => {
     const user = await authRepository.findUserByEmail(email)
     if (!user) {
@@ -53,7 +68,7 @@ export const authService = {
     await authRepository.createActivityLog({
       userId: user.id,
       title: `User ${user.email} logged in`,
-      type: 'LESSON_COMPLETE',
+      type: ActivityType.LOGIN,
     })
 
     const { passwordHash, ...userWithoutPassword } = user
@@ -64,6 +79,9 @@ export const authService = {
     }
   },
 
+  /**
+   * Refresh access token
+   */
   refreshToken: async (refreshToken: string) => {
     const decoded = verifyRefreshToken(refreshToken)
     if (!decoded) {
@@ -99,8 +117,8 @@ export const authService = {
 
     await authRepository.createActivityLog({
       userId: user.id,
-      title: 'Token refreshed',
-      type: 'LESSON_COMPLETE',
+      title: `Token refreshed for user ${user.email}`,
+      type: ActivityType.TOKEN_REFRESH,
     })
 
     return {
@@ -109,15 +127,22 @@ export const authService = {
     }
   },
 
+  /**
+   * Logout user
+   */
   logout: async (userId: string, refreshToken: string) => {
     await authRepository.deleteRefreshToken(refreshToken)
+
     await authRepository.createActivityLog({
       userId,
       title: 'User logged out',
-      type: 'LESSON_COMPLETE',
+      type: ActivityType.LOGOUT,
     })
   },
 
+  /**
+   * Get user profile
+   */
   getProfile: async (userId: string) => {
     const user = await authRepository.findUserById(userId)
     if (!user) {
@@ -128,6 +153,9 @@ export const authService = {
     return userWithoutPassword
   },
 
+  /**
+   * Change password
+   */
   changePassword: async (userId: string, currentPassword: string, newPassword: string) => {
     const user = await authRepository.findUserById(userId)
     if (!user) {
@@ -148,17 +176,20 @@ export const authService = {
     await authRepository.createActivityLog({
       userId,
       title: 'Password changed',
-      type: 'LESSON_COMPLETE',
+      type: ActivityType.PASSWORD_CHANGE,
     })
   },
 
+  /**
+   * Forgot password
+   */
   forgotPassword: async (email: string) => {
     const user = await authRepository.findUserByEmail(email)
     if (!user) {
       return
     }
-
-    const resetToken = generateToken(
+    
+    const resetToken = generateTokenWithExpiry(
       { id: user.id, email: user.email, role: user.role },
       '1h'
     )
@@ -166,12 +197,15 @@ export const authService = {
     await authRepository.createActivityLog({
       userId: user.id,
       title: 'Password reset requested',
-      type: 'LESSON_COMPLETE',
+      type: ActivityType.PASSWORD_RESET_REQUEST,
     })
 
     return { resetToken }
   },
 
+  /**
+   * Reset password
+   */
   resetPassword: async (token: string, newPassword: string) => {
     const decoded = verifyRefreshToken(token)
     if (!decoded) {
@@ -192,7 +226,7 @@ export const authService = {
     await authRepository.createActivityLog({
       userId: user.id,
       title: 'Password reset completed',
-      type: 'LESSON_COMPLETE',
+      type: ActivityType.PASSWORD_RESET_COMPLETE,
     })
   },
 }
