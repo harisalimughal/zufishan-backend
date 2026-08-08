@@ -45,7 +45,7 @@ export const adminController = {
   }),
 
   deleteUser: asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params
+    const id = req.params.id as string
     const user = await prisma.user.findUnique({ where: { id } })
     if (!user) {
       return res.status(404).json({
@@ -66,7 +66,7 @@ export const adminController = {
 
     await prisma.user.delete({ where: { id } })
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'User deleted successfully',
     })

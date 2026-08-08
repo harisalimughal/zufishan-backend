@@ -28,7 +28,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
 
     ;(req as any).user = decoded
-    next()
+    return next()
   } catch (error) {
     return res.status(401).json({
       success: false,

@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction } from 'express'
 import { ZodSchema, ZodError } from 'zod'
 
 type ValidationSource = 'body' | 'params' | 'query'
@@ -22,7 +22,7 @@ export const validate = (schema: ZodSchema, source: ValidationSource = 'body') =
       }
       
       await schema.parseAsync(dataToValidate)
-      next()
+      return next()
     } catch (error: any) {
       if (error.issues) {
         const errors = error.issues.map((err: any) => ({
@@ -35,7 +35,7 @@ export const validate = (schema: ZodSchema, source: ValidationSource = 'body') =
           errors,
         })
       }
-      next(error)
+      return next(error)
     }
   }
 }
