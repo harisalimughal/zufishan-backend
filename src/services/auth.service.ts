@@ -3,7 +3,6 @@ import { ApiError } from '../utils/apiError'
 import { comparePassword, hashPassword } from '../utils/password'
 import { generateToken, generateRefreshToken, verifyRefreshToken, generateTokenWithExpiry } from '../utils/jwt'
 
-// Activity types enum (matching Prisma schema)
 const ActivityType = {
   LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
@@ -14,9 +13,6 @@ const ActivityType = {
 } as const
 
 export const authService = {
-  /**
-   * Register a new user
-   */
   register: async (input: {
     email: string
     password: string
@@ -41,9 +37,6 @@ export const authService = {
     return { user: userWithoutPassword }
   },
 
-  /**
-   * Login user
-   */
   login: async (email: string, password: string, ipAddress?: string, userAgent?: string) => {
     const user = await authRepository.findUserByEmail(email)
     if (!user) {
@@ -79,9 +72,6 @@ export const authService = {
     }
   },
 
-  /**
-   * Refresh access token
-   */
   refreshToken: async (refreshToken: string) => {
     const decoded = verifyRefreshToken(refreshToken)
     if (!decoded) {
@@ -127,9 +117,6 @@ export const authService = {
     }
   },
 
-  /**
-   * Logout user
-   */
   logout: async (userId: string, refreshToken: string) => {
     await authRepository.deleteRefreshToken(refreshToken)
 
@@ -140,9 +127,6 @@ export const authService = {
     })
   },
 
-  /**
-   * Get user profile
-   */
   getProfile: async (userId: string) => {
     const user = await authRepository.findUserById(userId)
     if (!user) {
@@ -153,9 +137,6 @@ export const authService = {
     return userWithoutPassword
   },
 
-  /**
-   * Change password
-   */
   changePassword: async (userId: string, currentPassword: string, newPassword: string) => {
     const user = await authRepository.findUserById(userId)
     if (!user) {
@@ -180,15 +161,12 @@ export const authService = {
     })
   },
 
-  /**
-   * Forgot password
-   */
   forgotPassword: async (email: string) => {
     const user = await authRepository.findUserByEmail(email)
     if (!user) {
       return
     }
-    
+
     const resetToken = generateTokenWithExpiry(
       { id: user.id, email: user.email, role: user.role },
       '1h'
@@ -203,9 +181,6 @@ export const authService = {
     return { resetToken }
   },
 
-  /**
-   * Reset password
-   */
   resetPassword: async (token: string, newPassword: string) => {
     const decoded = verifyRefreshToken(token)
     if (!decoded) {

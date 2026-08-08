@@ -9,17 +9,16 @@ import routes from './routes'
 import { errorHandler, notFound } from './middlewares/error.middleware'
 import { logger } from './utils/logger'
 import { env } from './config/env'
-import { prisma } from './config/prisma'  // ✅ Static import instead of dynamic
 
 export const app: Express = express()
 
 // Security middleware
 app.use(helmet())
 
-// CORS - Allow all origins
+// ✅ Fix: CORS - Use configured origin, not wildcard with credentials
 app.use(
   cors({
-    origin: '*',
+    origin: env.CLIENT_URL || 'http://localhost:3000',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -85,10 +84,10 @@ app.get('/health', (req: Request, res: Response) => {
   })
 })
 
-// Readiness check - Fixed: using static import
+// Readiness check
 app.get('/ready', async (req: Request, res: Response) => {
   try {
-    // ✅ Use prisma directly from static import
+    const { prisma } = await import('./config/prisma')
     await prisma.$queryRaw`SELECT 1`
     res.status(200).json({
       success: true,
@@ -96,7 +95,6 @@ app.get('/ready', async (req: Request, res: Response) => {
       database: 'connected',
     })
   } catch (error) {
-    logger.error({ error }, 'Readiness check failed')
     res.status(503).json({
       success: false,
       message: 'Server is not ready',

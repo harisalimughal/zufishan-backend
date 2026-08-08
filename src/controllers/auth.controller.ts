@@ -1,6 +1,7 @@
 ﻿import { Request, Response } from 'express'
 import { authService } from '../services/auth.service'
 import { asyncHandler } from '../utils/asyncHandler'
+import { ApiError } from '../utils/apiError'
 import {
   registerSchema,
   loginSchema,
@@ -48,12 +49,15 @@ export const authController = {
     })
   }),
 
+  // ✅ Fix: Use ApiError instead of generic Error
   logout: asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user?.id
     const { refreshToken } = req.body
+    
     if (!refreshToken) {
-      throw new Error('Refresh token is required')
+      throw ApiError.badRequest('Refresh token is required')
     }
+    
     await authService.logout(userId, refreshToken)
     res.status(200).json({
       success: true,

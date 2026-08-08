@@ -1,10 +1,27 @@
 ﻿import { Request, Response, NextFunction } from 'express'
-import { ZodSchema } from 'zod'
+import { ZodSchema, ZodError } from 'zod'
 
-export const validate = (schema: ZodSchema) => {
+type ValidationSource = 'body' | 'params' | 'query'
+
+export const validate = (schema: ZodSchema, source: ValidationSource = 'body') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await schema.parseAsync(req.body)
+      let dataToValidate: any
+      
+      switch (source) {
+        case 'params':
+          dataToValidate = req.params
+          break
+        case 'query':
+          dataToValidate = req.query
+          break
+        case 'body':
+        default:
+          dataToValidate = req.body
+          break
+      }
+      
+      await schema.parseAsync(dataToValidate)
       next()
     } catch (error: any) {
       if (error.issues) {

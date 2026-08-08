@@ -17,10 +17,10 @@ router.get('/users', adminController.listUsers)
 // Get admin stats
 router.get('/stats', adminController.getStats)
 
-// Delete user (with validation)
+// ✅ Fix: Validate params, not body
 const deleteUserSchema = z.object({
   id: z.string().min(1, 'User ID is required'),
 })
-router.delete('/users/:id', validate(deleteUserSchema), adminController.deleteUser)
+router.delete('/users/:id', validate(deleteUserSchema, 'params'), adminController.deleteUser)
 
 export default router

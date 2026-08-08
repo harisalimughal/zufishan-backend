@@ -29,10 +29,12 @@ export const changePasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 })
 
+// ✅ Add missing export for forgotPasswordSchema
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email format'),
 })
 
+// ✅ Add missing export for resetPasswordSchema
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Reset token is required'),
   newPassword: z.string()
@@ -42,6 +44,7 @@ export const resetPasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 })
 
+// Type exports
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>

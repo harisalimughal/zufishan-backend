@@ -70,12 +70,13 @@ export const authRepository = {
     })
   },
 
+  // ✅ Fix: Use proper type instead of 'any'
   createActivityLog: (data: { userId: string; title: string; type: string }) => {
     return prisma.activityLog.create({
       data: {
         userId: data.userId,
         title: data.title,
-        type: data.type as any,
+        type: data.type as Prisma.ActivityLogCreateInput['type'],
       }
     })
   },
