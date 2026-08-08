@@ -1,51 +1,58 @@
 {
   "name": "ranenla-backend",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Ranenla / Nexora backend API — Node.js, Express, PostgreSQL, Prisma",
+  "version": "1.0.0",
+  "description": "Ranenla Backend API",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
+    "create-admin": "ts-node prisma/seed.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
+    "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "tsx prisma/seed.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "express-rate-limit": "^6.10.0",
     "helmet": "^8.0.0",
-    "morgan": "^1.10.0"
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pino": "^8.15.0",
+    "pino-pretty": "^10.2.0",
+    "zod": "^3.22.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "@types/bcryptjs": "^2.4.2",
+    "@types/compression": "^1.7.3",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.3",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.5",
+    "@types/supertest": "^2.0.16",
+    "@vitest/coverage-v8": "^1.6.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.5.3",
     "prisma": "^6.2.1",
+    "supertest": "^6.3.3",
+    "ts-node": "^10.9.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.19.1"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "typescript-eslint": "^8.19.1",
+    "vitest": "^1.6.0"
   }
 }

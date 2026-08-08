@@ -1,23 +1,21 @@
-// Root router — aggregates every module's router and mounts each under its
-// own path prefix. This is the ONLY file app.ts needs to import routes from.
-//
-// TODO:
-// - import { Router } from "express";
-// - import userRoutes from "./user.routes";
-// - const router = Router();
-// - router.use("/users", userRoutes);
-// - export default router;
+﻿import { Router } from 'express'
+import authRoutes from './auth.routes'
+import adminRoutes from './admin.routes'
 
-import { Router } from "express";
+const router = Router()
 
-import courseRoutes from "./course.routes";
-import courseModuleRoutes from "./courseModule.routes";
-import lessonRoutes from "./lesson.routes";
+// Mount routes
+router.use('/auth', authRoutes)
+router.use('/admin', adminRoutes)
 
-const router = Router();
+// Health check
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+  })
+})
 
-router.use("/courses", courseRoutes);
-router.use("/", courseModuleRoutes);
-router.use("/", lessonRoutes);
-
-export default router;
+export default router

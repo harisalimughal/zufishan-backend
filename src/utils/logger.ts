@@ -1,5 +1,21 @@
-// Shared logger (recommended: pino or winston) — use instead of raw
-// console.log so log level/format stays consistent across the app.
-//
-// TODO:
-// - export const logger = ...;
+﻿import pino from 'pino'
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV !== 'production'
+    ? {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname'
+        }
+      }
+    : undefined,
+  base: {
+    env: process.env.NODE_ENV || 'development',
+    service: 'ranenla-backend'
+  }
+})
+
+export default logger

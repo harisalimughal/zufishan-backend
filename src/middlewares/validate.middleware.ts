@@ -1,13 +1,41 @@
-// Generic validation middleware — runs a validator schema (see
-// src/validators) against req.body/query/params and returns 400 on failure,
-// so controllers never have to validate input themselves.
-//
-// TODO:
-// - export const validate = (schema: ZodSchema) => (req, res, next) => {...}
+import { Request, Response, NextFunction } from 'express'
+import { ZodSchema, ZodError } from 'zod'
 
-import { Request, Response, NextFunction } from "express";
+type ValidationSource = 'body' | 'params' | 'query'
 
-export const validate =
-  (_schema: unknown) => (_req: Request, _res: Response, next: NextFunction) => {
-    next();
-  };
+export const validate = (schema: ZodSchema, source: ValidationSource = 'body') => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      let dataToValidate: any
+      
+      switch (source) {
+        case 'params':
+          dataToValidate = req.params
+          break
+        case 'query':
+          dataToValidate = req.query
+          break
+        case 'body':
+        default:
+          dataToValidate = req.body
+          break
+      }
+      
+      await schema.parseAsync(dataToValidate)
+      return next()
+    } catch (error: any) {
+      if (error.issues) {
+        const errors = error.issues.map((err: any) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        }))
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors,
+        })
+      }
+      return next(error)
+    }
+  }
+}

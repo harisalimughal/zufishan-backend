@@ -1,45 +1,120 @@
-// Express app assembly — middleware registration + route mounting.
-// No `listen()` here; that belongs in server.ts so the app instance can be
-// imported directly in tests (supertest) without opening a real port.
-//
-// TODO:
-// - create express() instance
-// - register global middleware: helmet, cors, express.json(), morgan, cookie-parser
-// - mount routes from "./routes" under /api
-// - register notFound + errorHandler middleware last
-// - export the app instance
+import express, { Express, Request, Response, NextFunction } from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import morgan from 'morgan'
+import cookieParser from 'cookie-parser'
+import compression from 'compression'
+import rateLimit from 'express-rate-limit'
+import routes from './routes'
+import { errorHandler, notFound } from './middlewares/error.middleware'
+import { logger } from './utils/logger'
+import { env } from './config/env'
 
-import express from "express";
-import helmet from "helmet";
-import cors from "cors";
-import morgan from "morgan";
-import cookieParser from "cookie-parser";
+export const app: Express = express()
 
-import router from "./routes";
-import { errorHandler } from "./middlewares/error.middleware";
-import { notFound } from "./middlewares/notFound.middleware";
+// Security middleware
+app.use(helmet())
 
-const app = express();
-
-app.use(helmet());
-
+// ✅ Fix: CORS - Use configured origin, not wildcard with credentials
 app.use(
   cors({
-    origin: true,
+    origin: env.CLIENT_URL || 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
-);
+)
 
-app.use(express.json());
+// Rate limiting - 100 requests per 15 minutes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.',
+  },
+})
+app.use('/api', limiter)
 
-app.use(morgan("dev"));
+// Request parsing
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+app.use(cookieParser())
+app.use(compression())
 
-app.use(cookieParser());
+// Logging
+if (env.NODE_ENV !== 'test') {
+  app.use(
+    morgan('combined', {
+      stream: {
+        write: (message: string) => logger.info(message.trim()),
+      },
+    })
+  )
+}
 
-app.use("/api", router);
+// Custom request logging
+app.use((req: Request, res: Response, next: NextFunction) => {
+  logger.debug(
+    {
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    },
+    'Incoming request'
+  )
+  next()
+})
 
-app.use(notFound);
+// Routes
+app.use('/api', routes)
 
-app.use(errorHandler);
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: env.NODE_ENV,
+  })
+})
 
-export { app };
+// Readiness check
+app.get('/ready', async (req: Request, res: Response) => {
+  try {
+    const { prisma } = await import('./config/prisma')
+    await prisma.$queryRaw`SELECT 1`
+    res.status(200).json({
+      success: true,
+      message: 'Server is ready',
+      database: 'connected',
+    })
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: 'Server is not ready',
+      database: 'disconnected',
+    })
+  }
+})
+
+// Root endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: 'Ranenla API is running',
+    version: '1.0.0',
+    health: '/health',
+  })
+})
+
+// Error handling
+app.use(notFound)
+app.use(errorHandler)
+
+export default app
