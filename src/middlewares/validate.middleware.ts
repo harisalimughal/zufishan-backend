@@ -1,41 +1,55 @@
-import { Request, Response, NextFunction } from 'express'
-import { ZodSchema, ZodError } from 'zod'
+import { Request, Response, NextFunction } from "express";
+import { ZodError, ZodSchema } from "zod";
 
-type ValidationSource = 'body' | 'params' | 'query'
+type ValidationSource = "body" | "params" | "query";
 
-export const validate = (schema: ZodSchema, source: ValidationSource = 'body') => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const validate = (
+  schema: ZodSchema,
+  source: ValidationSource = "body"
+) => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
-      let dataToValidate: any
-      
+      let dataToValidate: unknown;
+
       switch (source) {
-        case 'params':
-          dataToValidate = req.params
-          break
-        case 'query':
-          dataToValidate = req.query
-          break
-        case 'body':
+        case "params":
+          dataToValidate = req.params;
+          break;
+
+        case "query":
+          dataToValidate = req.query;
+          break;
+
+        case "body":
         default:
-          dataToValidate = req.body
-          break
+          dataToValidate = req.body;
+          break;
       }
-      
-      await schema.parseAsync(dataToValidate)
-      return next()
-    } catch (error: any) {
-      if (error.issues) {
-        const errors = error.issues.map((err: any) => ({
-          field: err.path.join('.'),
+
+      await schema.parseAsync(dataToValidate);
+
+      next();
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        const errors = error.issues.map((err) => ({
+          field: err.path.join("."),
           message: err.message,
-        }))
-        return res.status(400).json({
+        }));
+
+        res.status(400).json({
           success: false,
-          message: 'Validation failed',
+          message: "Validation failed",
           errors,
-        })
+        });
+
+        return;
       }
-      return next(error)
+
+      next(error);
     }
-  }
-}
+  };
+};

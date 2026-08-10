@@ -1,8 +1,7 @@
-﻿import { app } from "./app";
+import { app } from "./app";
 import { env } from "./config/env";
 import { logger } from "./utils/logger";
-import { checkDatabaseHealth } from "./config/prisma";
-import { PrismaClient } from "@prisma/client";
+import { checkDatabaseHealth, prisma } from "./config/prisma";
 
 // ============================================
 // CONSTANTS
@@ -10,7 +9,6 @@ import { PrismaClient } from "@prisma/client";
 const PORT = env.PORT || 4000;
 const SHUTDOWN_TIMEOUT = 10000; // 10 seconds
 let server: ReturnType<typeof app.listen> | null = null;
-let prismaInstance: PrismaClient | null = null;
 
 // ============================================
 // SERVER INFO
@@ -57,13 +55,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   }, SHUTDOWN_TIMEOUT);
 
   try {
-    // 1. Close database connections
-    if (prismaInstance) {
-      await prismaInstance.$disconnect();
-      logger.info("✅ Database connections closed");
-    }
-
-    // 2. Close HTTP server
+    // 1. Close HTTP server
     if (server) {
       await new Promise<void>((resolve) => {
         server!.close(() => {
@@ -71,7 +63,12 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
           resolve();
         });
       });
+      server = null;
     }
+
+    // 2. Close database connections
+    await prisma.$disconnect();
+    logger.info("✅ Database connections closed");
 
     clearTimeout(timeout);
     logger.info("✅ Graceful shutdown completed");
@@ -89,19 +86,21 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 const setupProcessHandlers = () => {
   // Shutdown signals
   ["SIGTERM", "SIGINT", "SIGUSR2"].forEach((signal) => {
-    process.on(signal, () => gracefulShutdown(signal));
+    process.on(signal, () => {
+      void gracefulShutdown(signal);
+    });
   });
 
   // Uncaught exceptions
   process.on("uncaughtException", (error) => {
     logger.fatal({ error }, "💥 Uncaught Exception");
-    gracefulShutdown("uncaughtException");
+    void gracefulShutdown("uncaughtException");
   });
 
   // Unhandled rejections
   process.on("unhandledRejection", (reason) => {
     logger.fatal({ reason }, "💥 Unhandled Rejection");
-    gracefulShutdown("unhandledRejection");
+    void gracefulShutdown("unhandledRejection");
   });
 };
 
@@ -119,10 +118,6 @@ const startServer = async (): Promise<void> => {
       logger.error("💡 Please check your DATABASE_URL in .env file");
       process.exit(1);
     }
-
-    // Store prisma instance for shutdown
-    const { prisma } = await import("./config/prisma");
-    prismaInstance = prisma;
 
     logger.info(`✅ Database connected${health.latency ? ` (${health.latency}ms)` : ""}`);
 
