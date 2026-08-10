@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "create-admin": "ts-node prisma/seed.ts",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",

@@ -23,7 +23,7 @@ if (!result.success) {
   console.error('\n💡 Required variables:')
   console.error('  - DATABASE_URL')
   console.error('  - JWT_SECRET')
-  process.exit(1)
+  throw new Error('Invalid environment variables')
 }
 
 export const env = result.data
