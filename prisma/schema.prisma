@@ -55,6 +55,12 @@ enum ActivityType {
   BADGE_EARNED
   LESSON_COMPLETE
   ASSIGNMENT_SUBMITTED
+  LOGIN
+  LOGOUT
+  TOKEN_REFRESH
+  PASSWORD_CHANGE
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_COMPLETE
 }
 
 // ==========================================
@@ -110,6 +116,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@map("refresh_tokens")
 }
 
@@ -141,6 +148,7 @@ model Course {
   calendarEvents CalendarEvent[]
   resources      CourseResource[]
 
+  @@index([category])
   @@map("courses")
 }
 
@@ -155,6 +163,7 @@ model CourseModule {
 
   lessons Lesson[]
 
+  @@index([courseId])
   @@map("course_modules")
 }
 
@@ -169,6 +178,7 @@ model Lesson {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
+  @@index([moduleId])
   @@map("lessons")
 }
 
@@ -181,6 +191,7 @@ model CourseResource {
   fileType   String   @default("pdf")
   uploadedAt DateTime @default(now())
 
+  @@index([courseId])
   @@map("course_resources")
 }
 
@@ -196,6 +207,8 @@ model Enrollment {
   updatedAt       DateTime         @updatedAt
 
   @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
   @@map("enrollments")
 }
 
@@ -215,6 +228,8 @@ model AttendanceLog {
   topic     String?          // e.g. "SQL Joins & Indexing"
   createdAt DateTime         @default(now())
 
+  @@index([userId])
+  @@index([courseId])
   @@map("attendance_logs")
 }
 
@@ -247,6 +262,7 @@ model Assignment {
 
   submissions Submission[]
 
+  @@index([courseId])
   @@map("assignments")
 }
 
@@ -265,6 +281,8 @@ model Submission {
   updatedAt    DateTime         @updatedAt
 
   @@unique([assignmentId, userId])
+  @@index([userId])
+  @@index([assignmentId])
   @@map("submissions")
 }
 
@@ -312,6 +330,7 @@ model CalendarEvent {
   isLive    Boolean   @default(false)
   createdAt DateTime  @default(now())
 
+  @@index([userId])
   @@map("calendar_events")
 }
 
@@ -324,6 +343,7 @@ model ActivityLog {
   type      ActivityType @default(LESSON_COMPLETE)
   createdAt DateTime     @default(now())
 
+  @@index([userId])
   @@map("activity_logs")
 }
 
