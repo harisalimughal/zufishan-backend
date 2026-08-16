@@ -4,18 +4,18 @@ import {
   NextFunction,
 } from "express";
 
+type AsyncController = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<any>;
+
 export const asyncHandler =
-  (
-    fn: (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => Promise<any>
-  ) =>
+  (fn: AsyncController) =>
   (
     req: Request,
     res: Response,
     next: NextFunction
   ): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
-  };
+  };

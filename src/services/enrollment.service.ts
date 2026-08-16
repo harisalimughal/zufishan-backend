@@ -48,13 +48,15 @@ export const enrollmentService = {
 
     // Create enrollment
     const enrollment = await enrollmentRepository.create({
-      userId,
-      courseId,
+      user: { connect: { id: userId } },
+      course: { connect: { id: courseId } },
       status: 'ACTIVE',
     })
 
     // Update course total students
-    await courseRepository.incrementStudents(courseId)
+    await courseRepository.update(courseId, {
+      totalStudents: { increment: 1 },
+    })
 
     // Log activity
     await achievementService.logActivity(userId, `Enrolled in ${course.title}`, 'LESSON_COMPLETE')
@@ -76,7 +78,8 @@ export const enrollmentService = {
 
     // If completed, log achievement
     if (progressPercent === 100) {
-      await achievementService.logActivity(userId, `Completed ${updated.course?.title || 'course'}`, 'LESSON_COMPLETE')
+      const courseInfo = await courseRepository.findById(courseId)
+      await achievementService.logActivity(userId, `Completed ${courseInfo?.title || 'course'}`, 'LESSON_COMPLETE')
     }
 
     return updated

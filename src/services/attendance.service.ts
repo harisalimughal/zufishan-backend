@@ -44,8 +44,8 @@ export const attendanceService = {
     }
 
     const attendance = await attendanceRepository.create({
-      userId,
-      courseId,
+      user: { connect: { id: userId } },
+      course: { connect: { id: courseId } },
       status: status as any,
       timeSlot,
       topic,

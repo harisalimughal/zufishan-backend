@@ -5,13 +5,14 @@ import { asyncHandler } from '../utils/asyncHandler'
 export const attendanceController = {
   getCourseAttendance: asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.id
-    const { courseId } = req.params
-    const { startDate, endDate } = req.query
+    const { courseId } = req.params as { courseId: string }
+    const startDate = req.query.startDate as string | undefined
+    const endDate = req.query.endDate as string | undefined
     const result = await attendanceService.getCourseAttendance(
       userId,
       courseId,
-      startDate as string,
-      endDate as string
+      startDate,
+      endDate
     )
     res.status(200).json({ success: true, data: result })
   }),

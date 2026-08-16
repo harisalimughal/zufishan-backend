@@ -1,4 +1,5 @@
 import { achievementRepository } from '../repositories/achievement.repository'
+import { prisma } from '../config/prisma'
 import { ApiError } from '../utils/apiError'
 
 export const achievementService = {
@@ -37,12 +38,12 @@ export const achievementService = {
   },
 
   checkAndAwardAchievements: async (userId: string) => {
-    const [allAchievements, userAchievements, enrollments, attendanceLogs, submissions] = await Promise.all([
+    const [allAchievements, userAchievements, enrollmentCount, attendanceCount, submissionCount] = await Promise.all([
       achievementRepository.findAll(),
       achievementRepository.findUserAchievements(userId),
-      // These should come from repositories
-      // For now, using placeholder values
-      // In production, inject these from respective repositories
+      prisma.enrollment.count({ where: { userId } }),
+      prisma.attendanceLog.count({ where: { userId } }),
+      prisma.submission.count({ where: { userId } }),
     ])
 
     const unlockedIds = new Set(userAchievements.map((a: any) => a.achievementId))
@@ -56,16 +57,16 @@ export const achievementService = {
 
       switch (achievement.title) {
         case 'First Steps':
-          shouldUnlock = enrollments >= 1
+          shouldUnlock = enrollmentCount >= 1
           break
         case 'Quick Learner':
-          shouldUnlock = enrollments >= 5
+          shouldUnlock = enrollmentCount >= 5
           break
         case 'Perfect Attendance':
-          shouldUnlock = attendanceLogs >= 10
+          shouldUnlock = attendanceCount >= 10
           break
         case 'Assignment Master':
-          shouldUnlock = submissions >= 20
+          shouldUnlock = submissionCount >= 20
           break
         default:
           shouldUnlock = false
@@ -90,7 +91,7 @@ export const achievementService = {
 
   logActivity: async (userId: string, title: string, type: string, subtitle?: string) => {
     return achievementRepository.createActivityLog({
-      userId,
+      user: { connect: { id: userId } },
       title,
       subtitle,
       type: type as any,
