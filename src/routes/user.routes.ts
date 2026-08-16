@@ -13,3 +13,19 @@
 // - router.post("/", userController.createUser);
 // - router.patch("/:id", userController.updateUser);
 // - router.delete("/:id", userController.deleteUser);
+import { Router } from 'express'
+import { authenticate } from '../middlewares/auth.middleware'
+import { userController } from '../controllers/user.controller'
+import { validate } from '../middlewares/validate.middleware'
+import { updateProfileSchema, updatePreferencesSchema, changePasswordSchema } from '../validators/user.validator'
+
+const router = Router()
+
+router.use(authenticate)
+
+router.get('/profile', userController.getProfile)
+router.patch('/profile', validate(updateProfileSchema), userController.updateProfile)
+router.patch('/preferences', validate(updatePreferencesSchema), userController.updatePreferences)
+router.put('/password', validate(changePasswordSchema), userController.changePassword)
+
+export default router
