@@ -23,8 +23,8 @@ export const userController = {
 
   updateProfile: asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.id
-    const { fullName, bio, avatarUrl } = req.body
-    const user = await userService.updateProfile(userId, { fullName, bio, avatarUrl })
+    const { fullName, email, bio, avatarUrl } = req.body
+    const user = await userService.updateProfile(userId, { fullName, email, bio, avatarUrl })
     res.status(200).json({ success: true, message: 'Profile updated successfully', data: user })
   }),
 

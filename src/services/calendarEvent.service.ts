@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
 import { calendarEventRepository } from "../repositories/calendarEvent.repository";
 import { userRepository } from "../repositories/user.repository";
 import { courseRepository } from "../repositories/course.repository";
@@ -51,14 +52,28 @@ export const createCalendarEvent = async (
     }
   }
 
-  if (data.startTime >= data.endTime) {
+  const startTime = new Date(data.startTime);
+  const endTime = new Date(data.endTime);
+
+  if (startTime >= endTime) {
     throw new ApiError(
       400,
       "Start time must be before end time"
     );
   }
 
-  return calendarEventRepository.create(userId, data);
+  const { courseId, ...rest } = data as any;
+  const createData: Prisma.CalendarEventCreateInput = {
+    ...rest,
+    startTime,
+    endTime,
+    user: { connect: { id: userId } },
+    ...(courseId ? { course: { connect: { id: courseId } } } : {}),
+  };
+
+  return prisma.calendarEvent.create({
+    data: createData,
+  });
 };
 
 export const updateCalendarEvent = async (

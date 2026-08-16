@@ -23,7 +23,7 @@ export const userService = {
     return user
   },
 
-  updateProfile: async (userId: string, data: { fullName?: string; bio?: string; avatarUrl?: string }) => {
+  updateProfile: async (userId: string, data: { fullName?: string; email?: string; bio?: string; avatarUrl?: string }) => {
     const user = await userRepository.update(userId, data)
     const { passwordHash, ...userWithoutPassword } = user
     return userWithoutPassword

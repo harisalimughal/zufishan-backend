@@ -1,4 +1,4 @@
-﻿import { authRepository } from '../repositories/auth.repository'
+import { authRepository } from '../repositories/auth.repository'
 import { ApiError } from '../utils/apiError'
 import { comparePassword, hashPassword } from '../utils/password'
 import { generateToken, generateRefreshToken, verifyRefreshToken, generateTokenWithExpiry } from '../utils/jwt'
@@ -58,11 +58,15 @@ export const authService = {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     })
 
-    await authRepository.createActivityLog({
-      userId: user.id,
-      title: `User ${user.email} logged in`,
-      type: ActivityType.LOGIN,
-    })
+    try {
+      await authRepository.createActivityLog({
+        userId: user.id,
+        title: `User ${user.email} logged in`,
+        type: ActivityType.LOGIN,
+      })
+    } catch (err) {
+      // Ignore logging error if activity log table constraint fails
+    }
 
     const { passwordHash, ...userWithoutPassword } = user
 

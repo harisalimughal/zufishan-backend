@@ -8,6 +8,7 @@ router.use(authenticate)
 
 router.get('/', achievementController.getAllAchievements)
 router.get('/feed', achievementController.getActivityFeed)
+router.get('/activity-feed', achievementController.getActivityFeed)
 router.post('/check', achievementController.checkAchievements)
 
 export default router

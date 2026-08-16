@@ -55,7 +55,8 @@ export const listUserCalendarEvents = asyncHandler(
 
 export const createCalendarEventController = asyncHandler(
   async (req: Request, res: Response) => {
-    const { userId, ...data } = req.body;
+    const userId = req.body.userId || (req as any).user?.id;
+    const { userId: _, ...data } = req.body;
 
     if (!userId) {
       res.status(400).json({

@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import {
   getAllCourses,
   getCourseById,
+  getCourseBySlug as getCourseBySlugService,
   createCourse as createCourseService,
   updateCourse as updateCourseService,
   deleteCourse as deleteCourseService,
@@ -18,6 +19,14 @@ export const getCourse = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
   const course = await getCourseById(id);
+
+  res.status(200).json(course);
+});
+
+export const getCourseBySlug = asyncHandler(async (req: Request, res: Response) => {
+  const slug = req.params.slug as string;
+
+  const course = await getCourseBySlugService(slug);
 
   res.status(200).json(course);
 });

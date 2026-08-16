@@ -10,7 +10,7 @@ router.use(authenticate)
 
 router.get('/', enrollmentController.getMyEnrollments)
 router.get('/progress/summary', enrollmentController.getProgressSummary)
-router.post('/courses/:courseId', validate(enrollCourseSchema), enrollmentController.enrollInCourse)
+router.post('/courses/:courseId', validate(enrollCourseSchema, 'params'), enrollmentController.enrollInCourse)
 router.patch('/courses/:courseId/progress', validate(updateProgressSchema), enrollmentController.updateProgress)
 
 export default router

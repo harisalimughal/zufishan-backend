@@ -16,6 +16,16 @@ export const getCourseById = async (id: string) => {
   return course;
 };
 
+export const getCourseBySlug = async (slug: string) => {
+  const course = await courseRepository.findBySlug(slug);
+
+  if (!course) {
+    throw new ApiError(404, "Course not found");
+  }
+
+  return course;
+};
+
 export const createCourse = async (data: Prisma.CourseCreateInput) => {
   const existingCourse = await courseRepository.findBySlug(data.detailSlug);
 

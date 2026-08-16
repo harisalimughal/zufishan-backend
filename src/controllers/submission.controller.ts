@@ -40,7 +40,16 @@ export const listSubmissionsByAssignment = asyncHandler(
 
 export const createSubmissionController = asyncHandler(
   async (req: Request, res: Response) => {
-    const { assignmentId, userId } = req.body;
+    const { assignmentId } = req.body;
+    const userId = req.body.userId || (req as any).user?.id;
+
+    if (!assignmentId || !userId) {
+      res.status(400).json({
+        success: false,
+        message: "assignmentId and userId are required",
+      });
+      return;
+    }
 
     const submission = await createSubmission(
       assignmentId,

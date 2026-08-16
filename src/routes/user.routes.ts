@@ -25,7 +25,9 @@ router.use(authenticate)
 
 router.get('/profile', userController.getProfile)
 router.patch('/profile', validate(updateProfileSchema), userController.updateProfile)
+router.put('/profile', validate(updateProfileSchema), userController.updateProfile)
 router.patch('/preferences', validate(updatePreferencesSchema), userController.updatePreferences)
+router.put('/preferences', validate(updatePreferencesSchema), userController.updatePreferences)
 router.put('/password', validate(changePasswordSchema), userController.changePassword)
 
 export default router

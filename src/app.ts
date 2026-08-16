@@ -43,7 +43,7 @@ app.use(
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: env.NODE_ENV === "development" ? 5000 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

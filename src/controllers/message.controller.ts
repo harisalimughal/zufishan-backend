@@ -103,11 +103,8 @@ export const listUnreadMessages = asyncHandler(
 
 export const createMessageController = asyncHandler(
   async (req: Request, res: Response) => {
-    const {
-      senderId,
-      receiverId,
-      content,
-    } = req.body;
+    const { receiverId, content } = req.body;
+    const senderId = req.body.senderId || (req as any).user?.id;
 
     if (!senderId || !receiverId || !content) {
       res.status(400).json({

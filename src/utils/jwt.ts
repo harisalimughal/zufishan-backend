@@ -1,4 +1,4 @@
-﻿import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
 import { env } from '../config/env'
 
 // JWT secret is required by env validation - no fallback
@@ -16,7 +16,7 @@ export const generateToken = (payload: TokenPayload): string => {
 }
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions)
+  return jwt.sign({ ...payload, jti: `${Date.now()}_${Math.random()}` }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions)
 }
 
 // ✅ Add missing function for reset tokens
