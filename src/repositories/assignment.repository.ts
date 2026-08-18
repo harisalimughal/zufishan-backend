@@ -28,6 +28,26 @@ export const assignmentRepository = {
     });
   },
 
+  create: async (data: {
+    courseId: string;
+    title: string;
+    description: string;
+    dueDate: Date;
+    totalPoints?: number;
+  }) => {
+    return prisma.assignment.create({
+      data,
+      include: {
+        course: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+  },
+
   createSubmission: async (data: {
     assignmentId: string;
     userId: string;

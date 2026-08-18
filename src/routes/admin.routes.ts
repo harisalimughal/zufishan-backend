@@ -17,10 +17,13 @@ router.get('/users', adminController.listUsers)
 // Get admin stats
 router.get('/stats', adminController.getStats)
 
-// ✅ Fix: Validate params, not body
-const deleteUserSchema = z.object({
+const userIdParamSchema = z.object({
   id: z.string().min(1, 'User ID is required'),
 })
-router.delete('/users/:id', validate(deleteUserSchema, 'params'), adminController.deleteUser)
+
+// Get a single user
+router.get('/users/:id', validate(userIdParamSchema, 'params'), adminController.getUser)
+
+router.delete('/users/:id', validate(userIdParamSchema, 'params'), adminController.deleteUser)
 
 export default router

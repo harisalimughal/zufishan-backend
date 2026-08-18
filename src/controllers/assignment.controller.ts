@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import {
+  createAssignment as createAssignmentService,
   getAllAssignments,
   getAssignmentById as getAssignmentService,
   submitAssignment as submitAssignmentService,
@@ -9,6 +10,11 @@ import {
 export const listAssignments = asyncHandler(async (_req: Request, res: Response) => {
   const assignments = await getAllAssignments();
   res.status(200).json(assignments);
+});
+
+export const createAssignmentController = asyncHandler(async (req: Request, res: Response) => {
+  const assignment = await createAssignmentService(req.body);
+  res.status(201).json(assignment);
 });
 
 export const getAssignment = asyncHandler(async (req: Request, res: Response) => {

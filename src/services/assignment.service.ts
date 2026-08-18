@@ -1,9 +1,19 @@
 import { assignmentRepository } from "../repositories/assignment.repository";
+import { courseRepository } from "../repositories/course.repository";
 import { ApiError } from "../utils/apiError";
-import { SubmitAssignmentInput } from "../validators/assignment.validator";
+import { CreateAssignmentInput, SubmitAssignmentInput } from "../validators/assignment.validator";
 
 export const getAllAssignments = async () => {
   return assignmentRepository.findAll();
+};
+
+export const createAssignment = async (data: CreateAssignmentInput) => {
+  const course = await courseRepository.findById(data.courseId);
+  if (!course) {
+    throw new ApiError(404, "Course not found");
+  }
+
+  return assignmentRepository.create(data);
 };
 
 export const getAssignmentById = async (id: string) => {

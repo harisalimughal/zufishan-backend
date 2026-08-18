@@ -9,6 +9,8 @@ export const adminController = {
         id: true,
         email: true,
         fullName: true,
+        avatarUrl: true,
+        bio: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -24,6 +26,35 @@ export const adminController = {
         users,
         total,
       },
+    })
+  }),
+
+  getUser: asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        avatarUrl: true,
+        bio: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user,
     })
   }),
 
