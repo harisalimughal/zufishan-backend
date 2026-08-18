@@ -109,17 +109,18 @@ const setupProcessHandlers = () => {
 // ============================================
 const startServer = async (): Promise<void> => {
   try {
-    // 1. Check database connection
+    // 1. Check database connection (informational only — a transient DB
+    // outage at boot should not take down the whole process; /ready
+    // reports live DB status per-request for that purpose).
     logger.info("🔍 Checking database connection...");
     const health = await checkDatabaseHealth();
 
     if (!health.isConnected) {
-      logger.error({ error: health.error }, "❌ Database connection failed");
-      logger.error("💡 Please check your DATABASE_URL in .env file");
-      process.exit(1);
+      logger.error({ error: health.error }, "⚠️  Database unreachable at startup — starting anyway");
+      logger.error("💡 Please check your DATABASE_URL if this persists");
+    } else {
+      logger.info(`✅ Database connected${health.latency ? ` (${health.latency}ms)` : ""}`);
     }
-
-    logger.info(`✅ Database connected${health.latency ? ` (${health.latency}ms)` : ""}`);
 
     // 2. Start HTTP server
     server = app.listen(PORT, () => {
