@@ -9,6 +9,7 @@ const envSchema = z.object({
     .string()
     .default("4000")
     .transform((val) => parseInt(val, 10)),
+  // Comma-separated list of allowed CORS origins
   CLIENT_URL: z.string().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
