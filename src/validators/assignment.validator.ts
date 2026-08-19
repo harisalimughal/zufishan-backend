@@ -16,3 +16,12 @@ export const createAssignmentSchema = z.object({
 });
 
 export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
+
+export const updateAssignmentSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  dueDate: z.coerce.date().optional(),
+  totalPoints: z.number().int().positive().optional(),
+});
+
+export type UpdateAssignmentInput = z.infer<typeof updateAssignmentSchema>;

@@ -6,7 +6,9 @@ export const submissionRepository = {
     return prisma.submission.findMany({
       include: {
         assignment: true,
-        user: true,
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },
@@ -16,7 +18,9 @@ export const submissionRepository = {
       where: { id },
       include: {
         assignment: true,
-        user: true,
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },
@@ -42,7 +46,9 @@ export const submissionRepository = {
       },
       include: {
         assignment: true,
-        user: true,
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },

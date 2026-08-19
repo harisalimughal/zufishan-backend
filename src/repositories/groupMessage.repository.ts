@@ -5,7 +5,9 @@ export const groupMessageRepository = {
   findAll: async () => {
     return prisma.groupMessage.findMany({
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -17,7 +19,9 @@ export const groupMessageRepository = {
     return prisma.groupMessage.findUnique({
       where: { id },
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },
@@ -26,7 +30,9 @@ export const groupMessageRepository = {
     return prisma.groupMessage.findMany({
       where: { channelId },
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -50,7 +56,9 @@ export const groupMessageRepository = {
         },
       },
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },
@@ -63,7 +71,9 @@ export const groupMessageRepository = {
       where: { id },
       data,
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },

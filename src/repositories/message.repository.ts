@@ -5,8 +5,12 @@ export const messageRepository = {
   findAll: async () => {
     return prisma.message.findMany({
       include: {
-        sender: true,
-        receiver: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
+        receiver: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -18,8 +22,12 @@ export const messageRepository = {
     return prisma.message.findUnique({
       where: { id },
       include: {
-        sender: true,
-        receiver: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
+        receiver: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },
@@ -42,8 +50,12 @@ export const messageRepository = {
         ],
       },
       include: {
-        sender: true,
-        receiver: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
+        receiver: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "asc",
@@ -57,7 +69,9 @@ export const messageRepository = {
         receiverId,
       },
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -72,7 +86,9 @@ export const messageRepository = {
         isRead: false,
       },
       include: {
-        sender: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -103,8 +119,12 @@ export const messageRepository = {
         },
       },
       include: {
-        sender: true,
-        receiver: true,
+        sender: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
+        receiver: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true, role: true },
+        },
       },
     });
   },

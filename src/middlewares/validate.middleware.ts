@@ -30,7 +30,22 @@ export const validate = (
           break;
       }
 
-      await schema.parseAsync(dataToValidate);
+      const parsed = await schema.parseAsync(dataToValidate);
+
+      switch (source) {
+        case "params":
+          req.params = parsed;
+          break;
+
+        case "query":
+          Object.assign(req.query as Record<string, unknown>, parsed);
+          break;
+
+        case "body":
+        default:
+          req.body = parsed;
+          break;
+      }
 
       next();
     } catch (error: unknown) {

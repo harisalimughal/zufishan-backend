@@ -48,6 +48,33 @@ export const assignmentRepository = {
     });
   },
 
+  update: async (
+    id: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      dueDate: Date;
+      totalPoints: number;
+    }>
+  ) => {
+    return prisma.assignment.update({
+      where: { id },
+      data,
+      include: {
+        course: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+  },
+
+  delete: async (id: string) => {
+    return prisma.assignment.delete({ where: { id } });
+  },
+
   createSubmission: async (data: {
     assignmentId: string;
     userId: string;

@@ -5,7 +5,15 @@ export const calendarEventRepository = {
   findAll: async () => {
     return prisma.calendarEvent.findMany({
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatarUrl: true,
+            role: true,
+          },
+        },
         course: true,
       },
       orderBy: {
@@ -18,7 +26,15 @@ export const calendarEventRepository = {
     return prisma.calendarEvent.findUnique({
       where: { id },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            avatarUrl: true,
+            role: true,
+          },
+        },
         course: true,
       },
     });
