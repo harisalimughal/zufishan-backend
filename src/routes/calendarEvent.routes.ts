@@ -7,6 +7,7 @@ import {
   updateCalendarEventController,
   deleteCalendarEventController,
 } from "../controllers/calendarEvent.controller";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
 
@@ -16,10 +17,13 @@ router.get("/user/:userId", listUserCalendarEvents);
 
 router.get("/:id", getCalendarEvent);
 
-router.post("/", createCalendarEventController);
+// This is a shared resource: students use it for their own personal
+// calendar, admins use it to schedule live classes — so it's gated to
+// "logged in", not "admin only".
+router.post("/", authenticate, createCalendarEventController);
 
-router.put("/:id", updateCalendarEventController);
+router.put("/:id", authenticate, updateCalendarEventController);
 
-router.delete("/:id", deleteCalendarEventController);
+router.delete("/:id", authenticate, deleteCalendarEventController);
 
 export default router;
