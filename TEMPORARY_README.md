@@ -253,3 +253,79 @@ apps/platform/services/utilityService.ts              (CREATE)
 1. Set `AUTH_DISABLED=false` in `AuthContext.tsx` when backend is confirmed running.
 2. Verify API responses match frontend service types.
 3. Add Vitest integration tests for new utility routes in `tests/`.
+
+---
+
+## 5. Utilities Module — Database Schema (Added 2026-08-24)
+
+**Migration file:** `prisma/migrations/20260824000000_utilities_module/migration.sql`
+
+Yeh section explain karta hai ke humne Utilities module ke liye PostgreSQL mein kaun se naye tables banaye hain. Koi bhi purana table change nahi kiya gaya — sirf naye tables add kiye gaye hain.
+
+---
+
+### 2 Naye Enums
+
+| Enum | Values | Use |
+| :--- | :--- | :--- |
+| `AzkarCategory` | MORNING, EVENING, SLEEP, PRAYER, GENERAL | Azkar category type |
+| `AiAssistantRole` | USER, ASSISTANT | AI chat message sender |
+
+---
+
+### Table-by-Table Explanation
+
+#### 1. `prayer_time_cache`
+- **Kya karta hai:** Prayer times ko cache karta hai taake har baar API call na karna pade.
+- **Unique constraint:** Ek hi location + date + method ka sirf ek row hoga.
+- **`latitude` / `longitude`:** `DECIMAL(9,6)` — float rounding errors se bachne ke liye.
+- **`expiresAt` index:** Cache cleanup jobs ke liye.
+
+#### 2. `zakat_nisab_rates`
+- **Kya karta hai:** Gold aur silver ki price per gram store karta hai (Nisab threshold ke liye).
+- **Admin managed:** Scheduled job ya admin data enter karta hai.
+- **`DECIMAL(18,6)`:** Financial calculations ke liye exact precision.
+- **Unique:** Ek currency ka ek din ka sirf ek rate allowed hai.
+
+#### 3. `zakat_calculations`
+- **Kya karta hai:** User ki Zakat calculation ka result save karta hai.
+- **`userId` nullable:** Guest user bhi calculate kar sakta hai bina account ke.
+- **All asset fields `DECIMAL`:** Paise wali fields kabhi float nahi honi chahiye.
+
+#### 4. `azkar_categories`
+- **Kya karta hai:** Azkar ke groups define karta hai — morning, evening, sleep, etc.
+- **`slug` unique:** URL-friendly identifier — e.g. `"morning"`.
+- **`displayOrder`:** Frontend pe categories ordered sequence mein dikhane ke liye.
+
+#### 5. `azkar_items`
+- **Kya karta hai:** Individual azkar / duas store karta hai.
+- **FK to categories (CASCADE):** Category delete hone par items bhi delete ho jate hain.
+- **`repetitions`:** Kitni baar padhna hai — default 33.
+- **`audioUrl`:** Optional audio URL agar audio feature future mein add karna ho.
+
+#### 6. `tasbih_sessions`
+- **Kya karta hai:** User ke dhikr counter sessions save karta hai.
+- **`sessionDate` DATE:** Sirf date — daily history efficiently fetch karne ke liye.
+- **Composite index `(userId, sessionDate)`:** Per-user daily lookup fast karta hai.
+
+#### 7. `ai_assistant_conversations`
+- **Kya karta hai:** AI assistant ke conversation threads manage karta hai.
+- **`isActive`:** Purane conversations archive karne ke liye.
+- **Learning Platform se ALAG:** `ai_chat_messages` (tutor feature) se bilkul alag table.
+
+#### 8. `ai_assistant_logs`
+- **Kya karta hai:** Conversation ke andar har message (user ya AI) store karta hai.
+- **`promptTokens`, `completionTokens`, `totalTokens`:** AI API cost tracking.
+- **`modelUsed`:** Kaunsa AI model use hua — e.g. `"gemini-1.5-flash"`.
+- **`latencyMs`:** Response time — performance monitoring ke liye.
+- **Composite index `(conversationId, createdAt)`:** Chronological history fetch ke liye efficient.
+
+---
+
+### Migration Chalane Ka Tarika (Jab DB Connected Ho)
+```bash
+# .env mein DATABASE_URL aur DIRECT_URL set karo, phir:
+npx prisma migrate deploy    # production ke liye
+npx prisma migrate dev       # development ke liye
+```
+

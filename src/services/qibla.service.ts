@@ -1,3 +1,5 @@
+
+
 import { ApiError } from '../utils/apiError'
 import type { QiblaQuery } from '../validators/utility.validator'
 

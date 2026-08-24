@@ -93,6 +93,11 @@ model User {
   receivedMessages Message[]         @relation("ReceivedMessages")
   groupMessages    GroupMessage[]
 
+  // ── Utilities Module relations ──
+  zakatCalculations        ZakatCalculation[]
+  tasbihSessions           TasbihSession[]
+  aiAssistantConversations AiAssistantConversation[]
+
   @@map("users")
 }
 
@@ -130,12 +135,12 @@ model Course {
   title          String
   detailSlug     String   @unique // e.g. "database-101", "python-programming"
   description    String
-  instructorName String   // e.g. "Prof. Lucas (AI)"
-  category       String   // e.g. "Computer Science", "AI Engineering"
+  instructorName String // e.g. "Prof. Lucas (AI)"
+  category       String // e.g. "Computer Science", "AI Engineering"
   level          String   @default("Beginner")
-  bannerUrl      String?  // e.g. "/course-database.png"
-  icon           String?  // e.g. "🗄️", "🌐", "</>"
-  iconBg         String?  // e.g. "bg-purple-900/30"
+  bannerUrl      String? // e.g. "/course-database.png"
+  icon           String? // e.g. "🗄️", "🌐", "</>"
+  iconBg         String? // e.g. "bg-purple-900/30"
   rating         Float    @default(4.8)
   totalStudents  Int      @default(0)
   liveClassToday Boolean  @default(false)
@@ -187,7 +192,7 @@ model CourseResource {
   id         String   @id @default(cuid())
   courseId   String
   course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title      String   // e.g. "Database Normalization.pdf"
+  title      String // e.g. "Database Normalization.pdf"
   fileUrl    String
   fileType   String   @default("pdf")
   uploadedAt DateTime @default(now())
@@ -225,8 +230,8 @@ model AttendanceLog {
   course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   date      DateTime
   status    AttendanceStatus @default(PRESENT)
-  timeSlot  String?          // e.g. "09:00 AM - 10:30 AM"
-  topic     String?          // e.g. "SQL Joins & Indexing"
+  timeSlot  String? // e.g. "09:00 AM - 10:30 AM"
+  topic     String? // e.g. "SQL Joins & Indexing"
   createdAt DateTime         @default(now())
 
   @@index([userId])
@@ -293,9 +298,9 @@ model Submission {
 
 model Achievement {
   id          String   @id @default(cuid())
-  title       String   // e.g. "Perfect Attendance"
+  title       String // e.g. "Perfect Attendance"
   description String
-  icon        String   // e.g. "Award", "Flame", "Star"
+  icon        String // e.g. "Award", "Flame", "Star"
   category    String   @default("General")
   xpPoints    Int      @default(50)
   createdAt   DateTime @default(now())
@@ -323,7 +328,7 @@ model CalendarEvent {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String?
   course    Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  title     String    // e.g. "Database 101"
+  title     String // e.g. "Database 101"
   startTime DateTime
   endTime   DateTime
   type      EventType @default(CLASS)
@@ -339,8 +344,8 @@ model ActivityLog {
   id        String       @id @default(cuid())
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String       // e.g. 'You completed "SQL Basics Quiz"'
-  subtitle  String?      // e.g. "Database Normalization.pdf"
+  title     String // e.g. 'You completed "SQL Basics Quiz"'
+  subtitle  String? // e.g. "Database Normalization.pdf"
   type      ActivityType @default(LESSON_COMPLETE)
   createdAt DateTime     @default(now())
 
@@ -385,4 +390,229 @@ model GroupMessage {
   createdAt DateTime @default(now())
 
   @@map("group_messages")
+}
+
+// ==========================================
+// 7. DAILY UTILITIES MODULE
+// ==========================================
+
+enum AzkarCategory {
+  MORNING
+  EVENING
+  SLEEP
+  PRAYER
+  GENERAL
+}
+
+enum AiAssistantRole {
+  USER
+  ASSISTANT
+}
+
+// ── 7a. Prayer Time Cache ──────────────────
+// Caches external API responses by location + date + method.
+// Avoids repeated calls for the same coordinates on the same day.
+model PrayerTimeCache {
+  id String @id @default(cuid())
+
+  // Location stored as Decimal for full precision (avoid float rounding)
+  latitude  Decimal @db.Decimal(9, 6)
+  longitude Decimal @db.Decimal(9, 6)
+
+  date   DateTime @db.Date // date-only (no time component)
+  method String   @default("MWL") // calculation method identifier
+
+  // Prayer times stored as HH:MM strings (timezone-agnostic)
+  fajr    String
+  sunrise String
+  dhuhr   String
+  asr     String
+  maghrib String
+  isha    String
+
+  // Optional extras some methods provide
+  midnight  String?
+  lastThird String?
+
+  expiresAt DateTime // cache TTL — typically end of the cached day
+  createdAt DateTime @default(now())
+
+  // One cache entry per (location bucket + date + method)
+  @@unique([latitude, longitude, date, method])
+  @@index([expiresAt]) // for cache-expiry cleanup jobs
+  @@map("prayer_time_cache")
+}
+
+// ── 7b. Zakat Nisab Rates ─────────────────
+// Stores periodic gold/silver price snapshots used to determine nisab.
+// Admin-managed; one record per currency per effective date.
+model ZakatNisabRate {
+  id String @id @default(cuid())
+
+  // Prices per gram in the given currency
+  goldPricePerGram   Decimal @db.Decimal(18, 6)
+  silverPricePerGram Decimal @db.Decimal(18, 6)
+
+  currency      String   @default("USD") @db.Char(3) // ISO 4217
+  effectiveDate DateTime @db.Date
+
+  // Nisab thresholds in grams (Islamic standard values)
+  nisabGoldGrams   Decimal @default(85) @db.Decimal(8, 3)
+  nisabSilverGrams Decimal @default(595) @db.Decimal(8, 3)
+
+  // Computed nisab value = nisabGoldGrams * goldPricePerGram
+  nisabValueGold   Decimal @db.Decimal(18, 4)
+  nisabValueSilver Decimal @db.Decimal(18, 4)
+
+  source    String? // e.g. "goldapi.io", "manual"
+  createdAt DateTime @default(now())
+
+  calculations ZakatCalculation[]
+
+  @@unique([currency, effectiveDate])
+  @@index([effectiveDate])
+  @@map("zakat_nisab_rates")
+}
+
+// ── 7c. Zakat Calculations ────────────────
+// Persists a user's zakat calculation result for record-keeping.
+// userId is optional to allow guest/unauthenticated calculations.
+model ZakatCalculation {
+  id     String  @id @default(cuid())
+  userId String? // nullable — guests can calculate without an account
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // User-provided asset values
+  goldGrams      Decimal @default(0) @db.Decimal(12, 4)
+  silverGrams    Decimal @default(0) @db.Decimal(12, 4)
+  cashSavings    Decimal @default(0) @db.Decimal(18, 4)
+  investments    Decimal @default(0) @db.Decimal(18, 4)
+  businessAssets Decimal @default(0) @db.Decimal(18, 4)
+  receivables    Decimal @default(0) @db.Decimal(18, 4)
+
+  // Computed results
+  totalZakatableAssets Decimal @db.Decimal(18, 4)
+  nisabThreshold       Decimal @db.Decimal(18, 4)
+  zakatDue             Decimal @db.Decimal(18, 4)
+  zakatableAboveNisab  Boolean // false if assets < nisab
+
+  currency    String          @default("USD") @db.Char(3)
+  nisabRateId String? // snapshot of rates used
+  nisabRate   ZakatNisabRate? @relation(fields: [nisabRateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("zakat_calculations")
+}
+
+// ── 7d. Azkar Categories ─────────────────
+// Admin-managed; defines the high-level groupings for azkar items.
+model AzkarCategoryRecord {
+  id           String   @id @default(cuid())
+  slug         String   @unique // e.g. "morning", "evening"
+  name         String // English label
+  arabicName   String // e.g. "أذكار الصباح"
+  description  String?
+  iconName     String? // Lucide icon name for UI
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items AzkarItem[]
+
+  @@index([isActive])
+  @@map("azkar_categories")
+}
+
+// ── 7e. Azkar Items ───────────────────────
+// Individual dhikr / supplication entries.
+model AzkarItem {
+  id         String              @id @default(cuid())
+  categoryId String
+  category   AzkarCategoryRecord @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  arabic          String // Full Arabic text
+  transliteration String? // Romanised pronunciation
+  translation     String // English meaning
+  repetitions     Int      @default(1) // How many times to recite
+  reference       String? // Source (e.g. "Sahih Bukhari 6311")
+  audioUrl        String? // Optional hosted audio file URL
+  displayOrder    Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("azkar_items")
+}
+
+// ── 7f. Tasbih Sessions ───────────────────
+// Persists a user's completed dhikr counter sessions.
+model TasbihSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phrase       String // e.g. "SubhanAllah" (transliteration or Arabic)
+  arabicPhrase String? // Arabic text if different from phrase
+  count        Int // Actual count achieved in session
+  target       Int     @default(33) // Target count (33, 99, etc.)
+  isCompleted  Boolean @default(false) // count >= target
+
+  sessionDate DateTime @default(now()) @db.Date // which day the session belongs to
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, sessionDate]) // efficient per-user daily history lookup
+  @@map("tasbih_sessions")
+}
+
+// ── 7g. AI Assistant Conversations ───────
+// Groups a series of messages into a single conversation thread.
+model AiAssistantConversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String? // Auto-generated from first message or user-set
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs AiAssistantLog[]
+
+  @@index([userId])
+  @@index([userId, isActive]) // filter active conversations per user
+  @@map("ai_assistant_conversations")
+}
+
+// ── 7h. AI Assistant Logs ─────────────────
+// Individual message turns within a conversation.
+// Kept separate from the Learning Platform's AiChatMessage model.
+model AiAssistantLog {
+  id             String                  @id @default(cuid())
+  conversationId String
+  conversation   AiAssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    AiAssistantRole // USER or ASSISTANT
+  content String // Full message text
+
+  // Token accounting for cost tracking / rate limiting
+  promptTokens     Int? // tokens in the user's prompt
+  completionTokens Int? // tokens in the AI's response
+  totalTokens      Int? // total billed tokens for this turn
+
+  // AI provider metadata
+  modelUsed String? // e.g. "gemini-1.5-flash"
+  latencyMs Int? // response time in milliseconds
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt]) // chronological message fetch
+  @@map("ai_assistant_logs")
 }
