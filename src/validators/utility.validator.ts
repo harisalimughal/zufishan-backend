@@ -126,3 +126,81 @@ export const aiAssistantMessageSchema = z.object({
 })
 
 export type AiAssistantMessageBody = z.infer<typeof aiAssistantMessageSchema>
+
+// ============================================================
+// AI ASSISTANT — FEEDBACK
+// ============================================================
+
+export const aiAssistantFeedbackSchema = z.object({
+  logId: z.string().cuid('Invalid log ID'),
+  rating: z.enum(['helpful', 'not_helpful', 'inappropriate']),
+  comment: z.string().max(500).optional(),
+})
+
+export type AiAssistantFeedbackBody = z.infer<typeof aiAssistantFeedbackSchema>
+
+// ============================================================
+// ZAKAT — HISTORY QUERY
+// ============================================================
+
+export const zakatHistoryQuerySchema = z.object({
+  currency: z.string().length(3).optional(),
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .refine((v) => v >= 1, { message: 'page must be >= 1' }),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 10))
+    .refine((v) => v >= 1 && v <= 50, { message: 'limit must be between 1 and 50' }),
+})
+
+export type ZakatHistoryQuery = z.infer<typeof zakatHistoryQuerySchema>
+
+// ============================================================
+// AZKAR — CATEGORY ITEMS QUERY
+// ============================================================
+
+export const azkarCategoryParamSchema = z.object({
+  categoryId: z.string().min(1, 'categoryId is required'),
+})
+
+export const azkarItemParamSchema = z.object({
+  id: z.string().min(1, 'id is required'),
+})
+
+export const azkarItemsQuerySchema = z.object({
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .refine((v) => v >= 1, { message: 'page must be >= 1' }),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 20))
+    .refine((v) => v >= 1 && v <= 100, { message: 'limit must be between 1 and 100' }),
+})
+
+// ============================================================
+// ADMIN — AI LOGS QUERY
+// ============================================================
+
+export const adminAiLogsQuerySchema = z.object({
+  userId: z.string().optional(),
+  modelUsed: z.string().optional(),
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .refine((v) => v >= 1, { message: 'page must be >= 1' }),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 20))
+    .refine((v) => v >= 1 && v <= 100, { message: 'limit must be between 1 and 100' }),
+})
+
+export type AdminAiLogsQuery = z.infer<typeof adminAiLogsQuerySchema>

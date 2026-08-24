@@ -16,14 +16,23 @@ import type { ZakatCalculateBody } from '../validators/utility.validator'
  *   if (totalAssets >= nisabThreshold) zakatDue = totalAssets * 0.025
  */
 export const zakatService = {
+  getNisabRate: async (): Promise<Record<string, unknown>> => {
+    // TODO: fetch latest ZakatNisabRate from DB, or call gold price API
+    throw ApiError.internal('Nisab rate feature is not yet implemented')
+  },
+
   calculateZakat: async (
     _body: ZakatCalculateBody,
   ): Promise<Record<string, unknown>> => {
-    // TODO: implement Zakat calculation logic
-    // 1. Fetch current gold price per gram in the given currency
-    // 2. Calculate nisab threshold (85g * goldPricePerGram)
-    // 3. Sum all zakatable assets
-    // 4. If totalAssets >= nisab → zakatDue = totalAssets * 0.025
     throw ApiError.internal('Zakat calculator feature is not yet implemented')
   },
+
+  getHistory: async (
+    _userId: string,
+    _query: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> => {
+    // TODO: prisma.zakatCalculation.findMany({ where: { userId }, skip, take })
+    throw ApiError.internal('Zakat history feature is not yet implemented')
+  },
 }
+

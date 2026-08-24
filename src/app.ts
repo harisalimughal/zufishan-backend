@@ -13,6 +13,7 @@ import rateLimit from "express-rate-limit";
 
 import routes from "./routes";
 import utilitiesRouter from "./routes/utilities";
+import { serveSwagger, setupSwagger } from "./docs/swaggerSpec";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import { logger } from "./utils/logger";
 import { env } from "./config/env";
@@ -117,10 +118,12 @@ app.use(
 
 app.use("/api", routes);
 
-// ==========================================
-// Utilities Module — /api/v1/utilities
-// ==========================================
 app.use("/api/v1/utilities", utilitiesRouter);
+
+// ==========================================
+// Swagger API Documentation — /api/v1/docs
+// ==========================================
+app.use("/api/v1/docs", serveSwagger, setupSwagger);
 
 // ==========================================
 // Health check

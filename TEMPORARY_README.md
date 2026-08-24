@@ -329,3 +329,49 @@ npx prisma migrate deploy    # production ke liye
 npx prisma migrate dev       # development ke liye
 ```
 
+### ----------------------------------------------------------
+
+### ZOD AS A -> -> -> VALIDATION KAM KRTA H. DATA PHNCHNY SY PHLY CHECK KRTA H, KHIN MASLA T NHI
+
+### PRISMA -> -> -> AIK TRANSLATOR H, TYPESCRIPT KO SQL M CONVERT KRTA H
+
+### ----------------------------------------------------------
+
+---
+
+## 6. Swagger / OpenAPI Documentation (Added 2026-08-24)
+
+**Docs URL:** `/api/v1/docs`
+
+Utilities module ke saare endpoints ki interactive documentation Swagger UI par ready hai.
+
+---
+
+### Endpoints Documented
+
+| Feature | Endpoint | Method | Auth |
+| :--- | :--- | :--- | :--- |
+| **Prayer Times** | `/prayer-times` | `GET` | Public |
+| **Qibla** | `/qibla` | `GET` | Public |
+| **Hijri Date** | `/hijri-date` | `GET` | Public |
+| **Zakat** | `/zakat/nisab-rate` | `GET` | Public |
+| **Zakat** | `/zakat/calculate` | `POST` | Public |
+| **Zakat** | `/zakat/history` | `GET` | 🔒 Auth |
+| **Azkar** | `/azkar/categories` | `GET` | Public |
+| **Azkar** | `/azkar/:categoryId/items` | `GET` | Public |
+| **Azkar** | `/azkar/item/:id` | `GET` | Public |
+| **Tasbih** | `/tasbih/sessions` | `POST` / `GET` | 🔒 Auth |
+| **Tasbih** | `/tasbih/stats` | `GET` | 🔒 Auth |
+| **AI Assistant** | `/ai-assistant/chat` | `POST` | 🔒 Auth |
+| **AI Assistant** | `/ai-assistant/history` | `GET` | 🔒 Auth |
+| **AI Assistant** | `/ai-assistant/conversations/:id` | `GET` | 🔒 Auth |
+| **AI Assistant** | `/ai-assistant/feedback` | `POST` | 🔒 Auth |
+| **AI Assistant** | `/ai-assistant/admin/logs` | `GET` | 🔒 Auth + Admin |
+
+---
+
+### Features of Swagger Setup
+1. **Interactive UI:** Developer browser par direct API test kar sakta hai.
+2. **Bearer JWT Token Support:** Top-right `Authorize` button se token enter karke private endpoints test kiye ja sakte hain.
+3. **Full Request / Response Examples:** Har endpoint ke parameters, request body schemas, status codes (`200`, `400`, `401`, `403`, `500`) aur example payloads document hain.
+

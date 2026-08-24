@@ -36,8 +36,13 @@ export const tasbihService = {
   },
 
   getHistory: async (userId: string): Promise<Record<string, unknown>> => {
-    // TODO: delegate to utilityRepository.getUserTasbihHistory once schema is migrated
     await utilityRepository.getUserTasbihHistory(userId)
     throw ApiError.internal('Tasbih history feature is not yet implemented')
+  },
+
+  getStats: async (_userId: string): Promise<Record<string, unknown>> => {
+    // TODO: aggregate from tasbih_sessions
+    // e.g. total sessions, total count, most used phrase, streak
+    throw ApiError.internal('Tasbih stats feature is not yet implemented')
   },
 }

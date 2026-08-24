@@ -16,7 +16,10 @@ router.post(
   tasbihController.saveSession,
 )
 
-// GET /api/v1/utilities/tasbih/sessions
+// GET /api/v1/utilities/tasbih/sessions  (history)
 router.get('/sessions', tasbihController.getHistory)
+
+// GET /api/v1/utilities/tasbih/stats
+router.get('/stats', tasbihController.getStats)
 
 export default router

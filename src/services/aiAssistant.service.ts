@@ -64,4 +64,19 @@ export const aiAssistantService = {
     await utilityRepository.getConversationHistory(conversationId, userId)
     throw ApiError.internal('AI conversation history is not yet implemented')
   },
+
+  submitFeedback: async (
+    _userId: string,
+    _body: { logId: string; rating: string; comment?: string },
+  ): Promise<Record<string, unknown>> => {
+    // TODO: update ai_assistant_logs row with feedback fields
+    throw ApiError.internal('AI feedback feature is not yet implemented')
+  },
+
+  getAdminLogs: async (
+    _query: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> => {
+    // TODO: admin paginated view of ai_assistant_logs with filters
+    throw ApiError.internal('Admin AI logs feature is not yet implemented')
+  },
 }
