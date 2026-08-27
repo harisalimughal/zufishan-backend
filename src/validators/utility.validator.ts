@@ -22,16 +22,85 @@ export const coordinatesSchema = z.object({
 // PRAYER TIMES
 // ============================================================
 
-export const prayerTimesQuerySchema = coordinatesSchema.extend({
-  method: z.string().optional().default('MWL'),   // calculation method e.g. MWL, ISNA, Egypt
-  date: z
-    .string()
-    .optional()
-    .refine(
-      (d) => !d || !isNaN(Date.parse(d)),
-      { message: 'date must be a valid ISO date string (YYYY-MM-DD)' }
-    ),
-})
+/**
+ * Accepts both short aliases (lat/lng) and long form (latitude/longitude).
+ * Also accepts asrMethod: 0 = Standard/Shafi'i (default), 1 = Hanafi.
+ * method: AlAdhan calculation method name, e.g. MWL, ISNA, Egypt, Karachi, etc.
+ */
+export const prayerTimesQuerySchema = z
+  .object({
+    // ── coordinate aliases (lat / lng) ──
+    lat: z
+      .string()
+      .or(z.number())
+      .optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    lng: z
+      .string()
+      .or(z.number())
+      .optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    // ── coordinate aliases (latitude / longitude) ──
+    latitude: z
+      .string()
+      .or(z.number())
+      .optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    longitude: z
+      .string()
+      .or(z.number())
+      .optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    // ── method + date ──
+    method: z.string().optional().default('MWL'),
+    asrMethod: z
+      .string()
+      .or(z.number())
+      .optional()
+      .transform((v) => {
+        if (v === undefined || v === null || v === '') return 0
+        const n = parseInt(String(v), 10)
+        return isNaN(n) ? 0 : n
+      })
+      .refine((v) => v === 0 || v === 1, {
+        message: 'asrMethod must be 0 (Standard/Shafi\'i) or 1 (Hanafi)',
+      })
+      .default(0),
+    date: z
+      .string()
+      .optional()
+      .refine((d) => !d || !isNaN(Date.parse(d)), {
+        message: 'date must be a valid ISO date string (YYYY-MM-DD)',
+      }),
+  })
+  .transform((raw) => {
+    // Merge aliases: lat overrides latitude, lng overrides longitude
+    const latitude = raw.lat ?? raw.latitude
+    const longitude = raw.lng ?? raw.longitude
+    return {
+      latitude,
+      longitude,
+      method: raw.method,
+      asrMethod: raw.asrMethod,
+      date: raw.date,
+    }
+  })
+  .refine((v) => v.latitude !== undefined, {
+    message: 'latitude (or lat) is required',
+    path: ['latitude'],
+  })
+  .refine((v) => v.longitude !== undefined, {
+    message: 'longitude (or lng) is required',
+    path: ['longitude'],
+  })
+  .refine((v) => v.latitude! >= -90 && v.latitude! <= 90, {
+    message: 'latitude must be between -90 and 90',
+    path: ['latitude'],
+  })
+  .refine((v) => v.longitude! >= -180 && v.longitude! <= 180, {
+    message: 'longitude must be between -180 and 180',
+    path: ['longitude'],
+  })
 
 export type PrayerTimesQuery = z.infer<typeof prayerTimesQuerySchema>
 

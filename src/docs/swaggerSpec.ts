@@ -56,17 +56,50 @@ export const swaggerDocument = {
           data: {
             type: 'object',
             properties: {
-              date: { type: 'string', example: '2026-08-24' },
-              method: { type: 'string', example: 'MWL' },
+              date: { type: 'string', example: '2026-08-27' },
+              hijriDate: {
+                type: 'object',
+                properties: {
+                  day:   { type: 'integer', example: 3 },
+                  month: {
+                    type: 'object',
+                    properties: {
+                      number: { type: 'integer', example: 3 },
+                      en:     { type: 'string',  example: 'Rabi al-Awwal' },
+                      ar:     { type: 'string',  example: 'ربيع الأول' },
+                    },
+                  },
+                  year: { type: 'integer', example: 1448 },
+                },
+              },
+              method:    { type: 'string',  example: 'MWL' },
+              asrMethod: { type: 'integer', example: 0, description: '0 = Standard/Shafi\'i, 1 = Hanafi' },
+              location: {
+                type: 'object',
+                properties: {
+                  latitude:  { type: 'number', example: 24.8607 },
+                  longitude: { type: 'number', example: 67.0011 },
+                },
+              },
               timings: {
                 type: 'object',
                 properties: {
-                  Fajr: { type: 'string', example: '04:30' },
-                  Sunrise: { type: 'string', example: '06:00' },
-                  Dhuhr: { type: 'string', example: '12:15' },
-                  Asr: { type: 'string', example: '15:45' },
-                  Maghrib: { type: 'string', example: '18:30' },
-                  Isha: { type: 'string', example: '20:00' },
+                  Fajr:    { type: 'string', example: '04:30' },
+                  Sunrise: { type: 'string', example: '06:10' },
+                  Dhuhr:   { type: 'string', example: '12:15' },
+                  Asr:     { type: 'string', example: '15:45' },
+                  Maghrib: { type: 'string', example: '18:35' },
+                  Isha:    { type: 'string', example: '20:00' },
+                  Midnight:  { type: 'string', example: '00:23', nullable: true },
+                  Lastthird: { type: 'string', example: '02:15', nullable: true },
+                },
+              },
+              meta: {
+                type: 'object',
+                properties: {
+                  timezone:              { type: 'string',  example: 'Asia/Karachi' },
+                  calculationMethodId:   { type: 'integer', example: 3 },
+                  cached:                { type: 'boolean', example: false },
                 },
               },
             },
@@ -201,16 +234,20 @@ export const swaggerDocument = {
       get: {
         tags: ['Prayer Times'],
         summary: 'Get Prayer Times for a specific location and date',
+        description: 'Returns the five daily prayer times (plus Sunrise) computed via the AlAdhan API. Results are cached in PostgreSQL to avoid redundant external calls.',
         parameters: [
-          { in: 'query', name: 'latitude', required: true, schema: { type: 'number' }, example: 24.8607 },
-          { in: 'query', name: 'longitude', required: true, schema: { type: 'number' }, example: 67.0011 },
-          { in: 'query', name: 'method', required: false, schema: { type: 'string', default: 'MWL' }, example: 'MWL' },
-          { in: 'query', name: 'date', required: false, schema: { type: 'string' }, example: '2026-08-24' },
+          { in: 'query', name: 'lat',       required: false, schema: { type: 'number' }, example: 24.8607,  description: 'Latitude (alias for latitude)' },
+          { in: 'query', name: 'lng',       required: false, schema: { type: 'number' }, example: 67.0011,  description: 'Longitude (alias for longitude)' },
+          { in: 'query', name: 'latitude',  required: false, schema: { type: 'number' }, example: 24.8607,  description: 'Latitude -90 to 90 (one of lat/latitude required)' },
+          { in: 'query', name: 'longitude', required: false, schema: { type: 'number' }, example: 67.0011,  description: 'Longitude -180 to 180 (one of lng/longitude required)' },
+          { in: 'query', name: 'method',    required: false, schema: { type: 'string', default: 'MWL' }, example: 'MWL', description: 'Calculation method: MWL (default), ISNA, Egypt, Karachi, Makkah, Qatar, Kuwait, Singapore, Tehran, Turkey, Jafari' },
+          { in: 'query', name: 'asrMethod', required: false, schema: { type: 'integer', enum: [0, 1], default: 0 }, example: 0, description: '0 = Standard/Shafi\'i (default), 1 = Hanafi' },
+          { in: 'query', name: 'date',      required: false, schema: { type: 'string' }, example: '2026-08-27', description: 'YYYY-MM-DD — defaults to today (UTC)' },
         ],
         responses: {
-          '200': { description: 'Success', content: { 'application/json': { schema: { $ref: '#/components/schemas/PrayerTimesResponse' } } } },
-          '400': { description: 'Validation Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ValidationErrorResponse' } } } },
-          '500': { description: 'Server Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '200': { description: 'Success',           content: { 'application/json': { schema: { $ref: '#/components/schemas/PrayerTimesResponse' } } } },
+          '400': { description: 'Validation Error',  content: { 'application/json': { schema: { $ref: '#/components/schemas/ValidationErrorResponse' } } } },
+          '500': { description: 'Server Error',      content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },

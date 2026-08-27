@@ -410,8 +410,8 @@ enum AiAssistantRole {
 }
 
 // ── 7a. Prayer Time Cache ──────────────────
-// Caches external API responses by location + date + method.
-// Avoids repeated calls for the same coordinates on the same day.
+// Caches external API responses by location + date + method + asrMethod.
+// Avoids repeated external calls for the same coordinates on the same day.
 model PrayerTimeCache {
   id String @id @default(cuid())
 
@@ -419,8 +419,9 @@ model PrayerTimeCache {
   latitude  Decimal @db.Decimal(9, 6)
   longitude Decimal @db.Decimal(9, 6)
 
-  date   DateTime @db.Date // date-only (no time component)
-  method String   @default("MWL") // calculation method identifier
+  date      DateTime @db.Date   // date-only (no time component)
+  method    String   @default("MWL")  // calculation method: MWL, ISNA, Egypt, Karachi …
+  asrMethod Int      @default(0)      // 0 = Standard/Shafi'i, 1 = Hanafi
 
   // Prayer times stored as HH:MM strings (timezone-agnostic)
   fajr    String
@@ -437,8 +438,8 @@ model PrayerTimeCache {
   expiresAt DateTime // cache TTL — typically end of the cached day
   createdAt DateTime @default(now())
 
-  // One cache entry per (location bucket + date + method)
-  @@unique([latitude, longitude, date, method])
+  // One cache entry per (location bucket + date + method + asrMethod)
+  @@unique([latitude, longitude, date, method, asrMethod])
   @@index([expiresAt]) // for cache-expiry cleanup jobs
   @@map("prayer_time_cache")
 }

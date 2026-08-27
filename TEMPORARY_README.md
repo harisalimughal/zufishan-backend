@@ -375,3 +375,88 @@ Utilities module ke saare endpoints ki interactive documentation Swagger UI par 
 2. **Bearer JWT Token Support:** Top-right `Authorize` button se token enter karke private endpoints test kiye ja sakte hain.
 3. **Full Request / Response Examples:** Har endpoint ke parameters, request body schemas, status codes (`200`, `400`, `401`, `403`, `500`) aur example payloads document hain.
 
+---
+
+## Phase 2 — Prayer Times Feature Implementation (2026-08-27)
+
+---
+
+### Kya kiya gaya? (Roman English Summary)
+
+Phase 2 mein humne **Prayer Times** feature poora implement kiya — backend se lekar frontend tak. Yeh feature ek production-ready, fully cached, aur tested implementation hai.
+
+---
+
+### Backend Changes
+
+#### 1. `src/validators/utility.validator.ts` — MODIFIED
+- `prayerTimesQuerySchema` ko extend kiya taake yeh `lat`/`lng` (short aliases) aur `latitude`/`longitude` dono accept kar sake.
+- `asrMethod` field add kiya: `0 = Standard/Shafi'i (default)`, `1 = Hanafi`.
+- Zod `.transform()` se dono coordinate aliases merge hote hain.
+
+#### 2. `prisma/schema.prisma` — MODIFIED
+- `PrayerTimeCache` model mein `asrMethod Int @default(0)` field add kiya.
+- `@@unique` constraint update: `[latitude, longitude, date, method, asrMethod]`.
+- Iska matlab: Hanafi aur Standard Asr ka alag-alag cache row hoga.
+
+#### 3. `src/repositories/prayerTimes.repository.ts` — CREATED
+- Data access layer — seedha `PrayerTimeCache` Prisma model se baat karta hai.
+- `findCached()`: Cache lookup (expired rows ignore karta hai).
+- `upsertCache()`: Insert ya update — concurrent requests safe hain.
+- `deleteExpired()`: Cleanup utility.
+
+#### 4. `src/services/prayerTimes.service.ts` — REWRITTEN
+- Cache check → AlAdhan API call (on miss) → Cache write (fire-and-forget).
+- 8 second timeout on external API call.
+- Graceful degradation: DB error pe AlAdhan continue hoti hai.
+- Response mein: prayer timings (HH:MM), hijri date, location, method, meta.
+
+#### 5. `src/controllers/prayerTimes.controller.ts` — UPDATED
+- Thin controller — sab kuch service ko delegate karta hai.
+
+#### 6. `src/docs/swaggerSpec.ts` — UPDATED
+- Prayer times response schema enrich kiya: hijriDate, location, asrMethod, meta.
+
+#### 7. `tests/prayerTimes.test.ts` — CREATED
+- 12 unit tests — sab pass. Cache hit, cache miss, error handling, graceful degradation sab cover.
+- Result: **12/12 PASS**
+
+---
+
+### Frontend Changes
+
+#### 8. `components/ReactQueryProvider.tsx` — CREATED
+- `@tanstack/react-query` provider — poore app ke liye.
+
+#### 9. `app/layout.tsx` — MODIFIED
+- `ReactQueryProvider` wrap kiya root layout mein.
+
+#### 10. `services/utilityService.ts` — CREATED
+- Backend response types TypeScript mein mirror kiye.
+- `getPrayerTimes(params)` — `apiClient.get()` wrapper.
+
+#### 11. `features/utilities/PrayerTimesFeature.tsx` — CREATED
+- Auto geolocation, 6 prayer cards, next prayer highlight (animated), Hanafi/Standard toggle, offline/denied/error states, loading skeleton, cached badge, Framer Motion animations.
+
+#### 12. `app/(dashboard)/prayer-times/page.tsx` — CREATED
+- Next.js page with SEO metadata.
+
+#### 13. `lib/navigation/sidebar-items.ts` — MODIFIED
+- `Utilities` section add kiya sidebar mein.
+
+---
+
+### Tests Result
+```
+Tests: 12/12 PASS
+Backend TypeScript:  0 errors
+Frontend TypeScript: 0 errors
+```
+
+### API Endpoint
+
+| Method | URL | Auth | Description |
+| :---   | :--- | :---  | :--- |
+| `GET` | `/api/v1/utilities/prayer-times` | Public | Prayer times by lat/lng/method/asrMethod/date |
+
+**Query Params:** `lat`, `lng`, `method` (default `MWL`), `asrMethod` (0/1), `date` (YYYY-MM-DD).
