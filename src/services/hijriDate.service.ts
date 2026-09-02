@@ -29,6 +29,7 @@ export interface HijriDateResponseData {
     regionNote?: string
   }
   currentEvent: IslamicEventDef | null
+  monthEvents: NearbyEvent[]
   nearbyEvents: NearbyEvent[]
 }
 
@@ -109,11 +110,12 @@ export const hijriDateService = {
 
     // Islamic events
     const currentEvent = islamicEventsEngine.getCurrentEvent(hijriResult.day, hijriResult.month.number)
+    const monthEvents = islamicEventsEngine.getMonthEvents(hijriResult.month.number, hijriResult.year)
     const nearbyEvents = islamicEventsEngine.getNearbyEvents(
       hijriResult.day,
       hijriResult.month.number,
       hijriResult.year,
-      6
+      10
     )
 
     let regionNote = 'Standard Umm Al-Qura / Global calculation'
@@ -136,6 +138,7 @@ export const hijriDateService = {
         regionNote,
       },
       currentEvent,
+      monthEvents,
       nearbyEvents,
     }
   },

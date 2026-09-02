@@ -157,9 +157,28 @@ export const islamicEventsEngine = {
   },
 
   /**
+   * Get all Islamic events occurring in a specific Hijri month and year.
+   */
+  getMonthEvents(hijriMonth: number, hijriYear: number): NearbyEvent[] {
+    const monthName = HIJRI_MONTH_NAMES_EN[hijriMonth - 1] ?? 'Hijri Month'
+    return ISLAMIC_EVENTS.filter((e) => e.month === hijriMonth).map((evt) => ({
+      name: evt.name,
+      nameAr: evt.nameAr,
+      hijriDay: evt.day,
+      hijriMonthNumber: evt.month,
+      hijriMonthName: monthName,
+      hijriYear,
+      hijriFormatted: `${evt.day} ${monthName} ${hijriYear} AH`,
+      daysRemaining: 0,
+      category: evt.category,
+      description: evt.description,
+    }))
+  },
+
+  /**
    * Calculate upcoming nearby Islamic events for a given Hijri date.
    */
-  getNearbyEvents(currentDay: number, currentMonth: number, currentYear: number, count = 5): NearbyEvent[] {
+  getNearbyEvents(currentDay: number, currentMonth: number, currentYear: number, count = 10): NearbyEvent[] {
     const totalDaysCurrent = (currentMonth - 1) * 29.5 + currentDay
 
     const upcoming = ISLAMIC_EVENTS.map((evt) => {
