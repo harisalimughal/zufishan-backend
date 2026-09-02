@@ -38,7 +38,12 @@ export const validate = (
           break;
 
         case "query":
-          Object.assign(req.query as Record<string, unknown>, parsed);
+          Object.defineProperty(req, "query", {
+            value: parsed,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
           break;
 
         case "body":

@@ -78,6 +78,8 @@ export const prayerTimesQuerySchema = z
     const latitude = raw.lat ?? raw.latitude
     const longitude = raw.lng ?? raw.longitude
     return {
+      lat: latitude,
+      lng: longitude,
       latitude,
       longitude,
       method: raw.method,
@@ -108,7 +110,25 @@ export type PrayerTimesQuery = z.infer<typeof prayerTimesQuerySchema>
 // QIBLA
 // ============================================================
 
-export const qiblaQuerySchema = coordinatesSchema
+export const qiblaQuerySchema = z
+  .object({
+    lat: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    lng: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    latitude: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    longitude: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+  })
+  .transform((raw) => ({
+    latitude:  raw.lat ?? raw.latitude,
+    longitude: raw.lng ?? raw.longitude,
+  }))
+  .refine((v) => v.latitude !== undefined, { message: 'latitude (or lat) is required', path: ['latitude'] })
+  .refine((v) => v.longitude !== undefined, { message: 'longitude (or lng) is required', path: ['longitude'] })
+  .refine((v) => v.latitude! >= -90 && v.latitude! <= 90, { message: 'latitude must be between -90 and 90', path: ['latitude'] })
+  .refine((v) => v.longitude! >= -180 && v.longitude! <= 180, { message: 'longitude must be between -180 and 180', path: ['longitude'] })
 
 export type QiblaQuery = z.infer<typeof qiblaQuerySchema>
 
@@ -116,15 +136,44 @@ export type QiblaQuery = z.infer<typeof qiblaQuerySchema>
 // HIJRI DATE
 // ============================================================
 
-export const hijriDateQuerySchema = z.object({
-  date: z
-    .string()
-    .optional()
-    .refine(
-      (d) => !d || !isNaN(Date.parse(d)),
-      { message: 'date must be a valid ISO date string (YYYY-MM-DD)' }
-    ),
-})
+export const hijriDateQuerySchema = z
+  .object({
+    date: z
+      .string()
+      .optional()
+      .refine(
+        (d) => !d || !isNaN(Date.parse(d)),
+        { message: 'date must be a valid date string (e.g. YYYY-MM-DD or DD-MM-YYYY)' }
+      ),
+    lat: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    lng: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    latitude: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    longitude: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseFloat(String(v)) : undefined)),
+    adjustment: z.string().or(z.number()).optional()
+      .transform((v) => (v !== undefined ? parseInt(String(v), 10) : undefined)),
+  })
+  .transform((raw) => ({
+    date: raw.date,
+    latitude: raw.lat ?? raw.latitude,
+    longitude: raw.lng ?? raw.longitude,
+    adjustment: raw.adjustment,
+  }))
+  .refine(
+    (v) => v.latitude === undefined || (v.latitude >= -90 && v.latitude <= 90),
+    { message: 'latitude must be between -90 and 90', path: ['latitude'] }
+  )
+  .refine(
+    (v) => v.longitude === undefined || (v.longitude >= -180 && v.longitude <= 180),
+    { message: 'longitude must be between -180 and 180', path: ['longitude'] }
+  )
+  .refine(
+    (v) => v.adjustment === undefined || (v.adjustment >= -3 && v.adjustment <= 3),
+    { message: 'adjustment must be an integer between -3 and 3', path: ['adjustment'] }
+  )
 
 export type HijriDateQuery = z.infer<typeof hijriDateQuerySchema>
 
