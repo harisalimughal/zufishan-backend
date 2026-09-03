@@ -10,13 +10,15 @@ import {
 
 const router = Router()
 
-// GET /api/v1/utilities/zakat/nisab-rate?currency=USD  (public)
-// Validates currency is a 3-letter ISO 4217 code, defaults to USD
+// GET /api/v1/utilities/zakat/nisab-rate?currency=PKR&methodology=SOUTH_ASIAN  (public)
 router.get(
   '/nisab-rate',
   validate(nisabRateQuerySchema, 'query'),
   zakatController.getNisabRate,
 )
+
+// GET /api/v1/utilities/zakat/methodologies  (public — returns available Nisab standards)
+router.get('/methodologies', zakatController.getMethodologies)
 
 // POST /api/v1/utilities/zakat/calculate  (public)
 router.post(

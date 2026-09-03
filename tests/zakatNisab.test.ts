@@ -133,29 +133,43 @@ describe('zakatNisabService.getNisabRate()', () => {
     expect(result.source).toBe('goldapi.io')
   })
 
-  // ── Scenario 3: Response shape correctness ───────────────────────────────
-  it('should correctly compute Gold Nisab as price × 85g', async () => {
+  // ── Scenario 3: Response shape correctness — SOUTH_ASIAN methodology ───────
+  // Correct Nisab weights per Darul Uloom Deoband: 7.5 tola = 87.48g gold, 52.5 tola = 612.36g silver
+  it('should compute Gold Nisab using 87.48g (7.5 tola — Darul Uloom Deoband SOUTH_ASIAN)', async () => {
     const goldPerGram = 75.5
     const row = makeRow(goldPerGram, 0.95)
     vi.mocked(zakatNisabRepository.findTodayCached).mockResolvedValue(row)
 
-    const result = await zakatNisabService.getNisabRate('USD')
+    const result = await zakatNisabService.getNisabRate('USD', 'SOUTH_ASIAN')
 
-    expect(result.gold.nisabWeightGrams).toBe(85)
+    expect(result.gold.nisabWeightGrams).toBe(87.48)
+    expect(result.gold.nisabWeightTola).toBe(7.5)
     expect(result.gold.pricePerGram).toBeCloseTo(goldPerGram, 2)
-    expect(result.gold.nisabValue).toBeCloseTo(goldPerGram * 85, 1)
+    expect(result.gold.nisabValue).toBeCloseTo(goldPerGram * 87.48, 1)
   })
 
-  it('should correctly compute Silver Nisab as price × 595g', async () => {
+  it('should compute Silver Nisab using 612.36g (52.5 tola — Darul Uloom Deoband SOUTH_ASIAN)', async () => {
     const silverPerGram = 0.95
     const row = makeRow(75.5, silverPerGram)
     vi.mocked(zakatNisabRepository.findTodayCached).mockResolvedValue(row)
 
-    const result = await zakatNisabService.getNisabRate('USD')
+    const result = await zakatNisabService.getNisabRate('USD', 'SOUTH_ASIAN')
 
-    expect(result.silver.nisabWeightGrams).toBe(595)
+    expect(result.silver.nisabWeightGrams).toBe(612.36)
+    expect(result.silver.nisabWeightTola).toBe(52.5)
     expect(result.silver.pricePerGram).toBeCloseTo(silverPerGram, 4)
-    expect(result.silver.nisabValue).toBeCloseTo(silverPerGram * 595, 1)
+    expect(result.silver.nisabValue).toBeCloseTo(silverPerGram * 612.36, 1)
+  })
+
+  it('should use AAOIFI standard (85g gold, 595g silver) when methodology=AAOIFI', async () => {
+    const row = makeRow(75.5, 0.95)
+    vi.mocked(zakatNisabRepository.findTodayCached).mockResolvedValue(row)
+
+    const result = await zakatNisabService.getNisabRate('USD', 'AAOIFI')
+
+    expect(result.gold.nisabWeightGrams).toBe(85)
+    expect(result.silver.nisabWeightGrams).toBe(595)
+    expect(result.methodology).toBe('AAOIFI')
   })
 
   it('lowerNisabValue should be min(gold, silver)', async () => {

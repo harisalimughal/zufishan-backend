@@ -1,18 +1,33 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '../utils/asyncHandler'
-import { zakatNisabService } from '../services/zakat.service'
+import { zakatNisabService, type NisabMethodology } from '../services/zakat.service'
 import type { NisabRateQuery } from '../validators/utility.validator'
 
 export const zakatController = {
   /**
-   * GET /api/v1/utilities/zakat/nisab-rate?currency=USD
+   * GET /api/v1/utilities/zakat/nisab-rate?currency=PKR&methodology=SOUTH_ASIAN
+   *
    * Returns live (or cached) gold/silver Nisab threshold rates.
-   * isStale + staleDays fields indicate if the data is from a previous day.
+   * - currency: auto-detected from frontend IP/locale (defaults to USD if not sent)
+   * - methodology: SOUTH_ASIAN (7.5 tola = 87.48g, Darul Uloom Deoband) or AAOIFI (85g)
+   * - isStale + staleDays fields indicate when cached data is older than today
    */
   getNisabRate: asyncHandler(async (req: Request, res: Response) => {
     const query = req.query as unknown as NisabRateQuery
-    const data = await zakatNisabService.getNisabRate(query.currency ?? 'USD')
+    const data = await zakatNisabService.getNisabRate(
+      query.currency ?? 'USD',
+      (query.methodology ?? 'SOUTH_ASIAN') as NisabMethodology,
+    )
     res.status(200).json({ success: true, message: 'Nisab rate fetched', data })
+  }),
+
+  /**
+   * GET /api/v1/utilities/zakat/methodologies
+   * Returns all available Nisab methodology standards.
+   */
+  getMethodologies: asyncHandler(async (_req: Request, res: Response) => {
+    const data = zakatNisabService.getMethodologies()
+    res.status(200).json({ success: true, message: 'Nisab methodologies', data })
   }),
 
   /**

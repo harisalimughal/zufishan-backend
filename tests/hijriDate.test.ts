@@ -126,6 +126,28 @@ describe('islamicEventsEngine', () => {
 })
 
 describe('hijriDateService.convertToHijri()', () => {
+  // Mock node-fetch so these tests don't hit the real AlAdhan API
+  // (the live API integration is verified separately in E2E tests)
+  vi.mock('node-fetch', async () => {
+    const aladhanPayload = {
+      code: 200,
+      data: {
+        hijri: {
+          day: '19',
+          month: { number: '3', en: "Rabi' al-Awwal", ar: 'ربيع الأول' },
+          year: '1448',
+          designation: { abbreviated: 'AH' },
+        },
+      },
+    }
+    return {
+      default: vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(aladhanPayload),
+      }),
+    }
+  })
+
   it('should return full expected API response payload', async () => {
     const res = await hijriDateService.convertToHijri({
       date: '2026-09-02',
@@ -160,3 +182,4 @@ describe('hijriDateService.convertToHijri()', () => {
     expect(res.location?.regionNote).toContain('Explicit day adjustment')
   })
 })
+

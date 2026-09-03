@@ -189,9 +189,18 @@ export const nisabRateQuerySchema = z.object({
     .transform((v) => v.toUpperCase())
     .optional()
     .default('USD'),
+  methodology: z
+    .enum(['SOUTH_ASIAN', 'AAOIFI'], {
+      errorMap: () => ({
+        message: 'methodology must be SOUTH_ASIAN (Darul Uloom Deoband — 7.5 tola) or AAOIFI (85g standard)',
+      }),
+    })
+    .optional()
+    .default('SOUTH_ASIAN'),
 })
 
 export type NisabRateQuery = z.infer<typeof nisabRateQuerySchema>
+
 
 // ============================================================
 // ZAKAT — CALCULATE
