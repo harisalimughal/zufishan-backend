@@ -178,7 +178,23 @@ export const hijriDateQuerySchema = z
 export type HijriDateQuery = z.infer<typeof hijriDateQuerySchema>
 
 // ============================================================
-// ZAKAT
+// ZAKAT — NISAB RATE QUERY
+// ============================================================
+
+export const nisabRateQuerySchema = z.object({
+  currency: z
+    .string()
+    .length(3, 'currency must be a 3-letter ISO 4217 code (e.g. USD, PKR, EUR)')
+    .regex(/^[A-Za-z]{3}$/, 'currency must be 3 alphabetic characters')
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .default('USD'),
+})
+
+export type NisabRateQuery = z.infer<typeof nisabRateQuerySchema>
+
+// ============================================================
+// ZAKAT — CALCULATE
 // ============================================================
 
 export const zakatCalculateSchema = z.object({

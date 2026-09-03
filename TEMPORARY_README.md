@@ -460,3 +460,106 @@ Frontend TypeScript: 0 errors
 | `GET` | `/api/v1/utilities/prayer-times` | Public | Prayer times by lat/lng/method/asrMethod/date |
 
 **Query Params:** `lat`, `lng`, `method` (default `MWL`), `asrMethod` (0/1), `date` (YYYY-MM-DD).
+
+---
+
+## Phase 3 — Zakat Nisab Rate Implementation (2026-09-03)
+
+---
+
+### Kya kiya gaya? (Roman English Summary)
+
+Phase 3 mein humne **Zakat Nisab Rate** feature poora implement kiya — live gold/silver market price fetching, PostgreSQL caching, stale data transparency, aur fully tested service layer.
+
+---
+
+### Implemented Features
+
+#### Core Logic
+- **Once-per-day caching:** Har currency ke liye ek hi baar market API call hoti hai per day. Result `zakat_nisab_rates` table mein cache hota hai.
+- **Live Market Price Sources (2 sources in priority order):**
+  1. **GoldAPI.io** (`GOLDAPI_KEY` env var) — free tier, gold & silver per troy ounce
+  2. **MetalPriceAPI.com** (`METALPRICEAPI_KEY` env var) — free tier backup
+- **Conversion:** 1 troy ounce = 31.1035g (standard constant, never hardcoded price)
+- **Islamic Standard Nisab Weights:**
+  - Gold Nisab: **85 grams** (Hanafi + contemporary scholars)
+  - Silver Nisab: **595 grams**
+- **Stale Data Transparency:** Agar live API fail ho jaye, DB se latest cached row return hota hai with `isStale: true` and `staleDays` count clearly included.
+- **503 / 500 behavior:** Agar koi price available nahi (no API key + no DB cache), `ApiError.internal()` throw hoti hai with a descriptive message — no silent mock data.
+
+#### API Response Shape
+```json
+{
+  "success": true,
+  "message": "Nisab rate fetched",
+  "data": {
+    "currency": "USD",
+    "gold": {
+      "pricePerGram": 75.5,
+      "nisabWeightGrams": 85,
+      "nisabValue": 6417.5
+    },
+    "silver": {
+      "pricePerGram": 0.000952,
+      "nisabWeightGrams": 595,
+      "nisabValue": 566.44
+    },
+    "lowerNisabValue": 566.44,
+    "effectiveDate": "2026-09-03",
+    "source": "goldapi.io",
+    "fetchedAt": "2026-09-03T10:33:00.000Z",
+    "isStale": false
+  }
+}
+```
+When stale:
+```json
+{
+  "isStale": true,
+  "staleDays": 2
+}
+```
+
+---
+
+### Files Created / Modified
+
+| File | Action | Description |
+| :--- | :--- | :--- |
+| `src/services/marketPrices.service.ts` | **CREATED** | Dual-source live market fetcher (GoldAPI + MetalPriceAPI) with 8s timeout |
+| `src/repositories/zakatNisab.repository.ts` | **CREATED** | DB layer: findTodayCached, findLatestValid, upsertRate |
+| `src/services/zakat.service.ts` | **REWRITTEN** | Full cache-first service with stale fallback and error handling |
+| `src/controllers/zakat.controller.ts` | **UPDATED** | Delegates to zakatNisabService, accepts `currency` query param |
+| `src/routes/utilities/zakat.routes.ts` | **UPDATED** | Added `validate(nisabRateQuerySchema, 'query')` to nisab-rate route |
+| `src/validators/utility.validator.ts` | **UPDATED** | Added `nisabRateQuerySchema` with ISO 4217 validation + `NisabRateQuery` type |
+| `tests/zakatNisab.test.ts` | **CREATED** | 15 unit tests covering all branches |
+
+---
+
+### Env Variables Required
+
+| Variable | Source | Description |
+| :--- | :--- | :--- |
+| `GOLDAPI_KEY` | https://www.goldapi.io | Primary live price source (free tier) |
+| `METALPRICEAPI_KEY` | https://metalpriceapi.com | Fallback live price source (free 100 req/month) |
+
+Without either key, the service falls back to cached DB rates, or returns 500 if no cached rate exists. No hardcoded prices are ever used.
+
+---
+
+### Tests Result
+
+```
+Tests:  15 new PASS (zakatNisab.test.ts)
+        82/84 total PASS (2 pre-existing hijriDate integration timeout failures, unrelated)
+TypeScript: 0 errors
+```
+
+### API Endpoint
+
+| Method | URL | Auth | Query Params |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/utilities/zakat/nisab-rate` | Public | `currency` (3-letter ISO 4217, default: `USD`) |
+
+Example: `GET /api/v1/utilities/zakat/nisab-rate?currency=PKR`
+
