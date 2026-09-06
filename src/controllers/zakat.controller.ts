@@ -1,10 +1,13 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '../utils/asyncHandler'
+import { ApiError } from '../utils/apiError'
 import { zakatNisabService, type NisabMethodology } from '../services/zakat.service'
 import { zakatCalculatorService } from '../services/zakatCalculator.service'
+import { zakatHistoryService } from '../services/zakatHistory.service'
 import type {
   NisabRateQuery,
   ZakatCalculateBody,
+  ZakatHistoryQuery,
 } from '../validators/utility.validator'
 
 export const zakatController = {
@@ -45,11 +48,18 @@ export const zakatController = {
   }),
 
   /**
-   * GET /api/v1/utilities/zakat/history
-   * Auth: required
+   * GET /api/v1/utilities/zakat/history?page=&limit=&currency=
+   * Auth: required — returns only the authenticated user's calculations.
    */
-  getHistory: asyncHandler(async (_req: Request, res: Response) => {
-    // TODO: implement history via zakatNisabRepository
-    res.status(501).json({ success: false, message: 'Zakat history not yet implemented' })
+  getHistory: asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id
+    if (!userId) {
+      throw ApiError.unauthorized('Authentication required')
+    }
+
+    // userId is taken ONLY from the JWT — never from query/body.
+    const query = req.query as unknown as ZakatHistoryQuery
+    const data = await zakatHistoryService.getHistory(userId, query)
+    res.status(200).json({ success: true, message: 'Zakat history fetched', data })
   }),
 }

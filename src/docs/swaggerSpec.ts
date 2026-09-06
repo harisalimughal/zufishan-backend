@@ -246,6 +246,45 @@ export const swaggerDocument = {
           },
         },
       },
+      ZakatHistoryResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Zakat history fetched' },
+          data: {
+            type: 'object',
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    userId: { type: 'string' },
+                    totalZakatableAssets: { type: 'number', example: 20050 },
+                    nisabThreshold: { type: 'number', example: 565.25 },
+                    zakatDue: { type: 'number', example: 501.25 },
+                    zakatableAboveNisab: { type: 'boolean', example: true },
+                    currency: { type: 'string', example: 'USD' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
+              pagination: {
+                type: 'object',
+                properties: {
+                  page: { type: 'integer', example: 1 },
+                  limit: { type: 'integer', example: 10 },
+                  total: { type: 'integer', example: 25 },
+                  totalPages: { type: 'integer', example: 3 },
+                  hasNext: { type: 'boolean', example: true },
+                  hasPrev: { type: 'boolean', example: false },
+                },
+              },
+            },
+          },
+        },
+      },
       TasbihSaveRequest: {
         type: 'object',
         required: ['phrase', 'count'],
@@ -355,13 +394,24 @@ export const swaggerDocument = {
       get: {
         tags: ['Zakat'],
         summary: 'Get saved Zakat calculations history for authenticated user',
+        description:
+          'Returns only the current user\'s calculations, newest first, with pagination metadata. Requires Bearer JWT.',
         security: [{ BearerAuth: [] }],
         parameters: [
-          { in: 'query', name: 'page', schema: { type: 'integer', default: 1 } },
-          { in: 'query', name: 'limit', schema: { type: 'integer', default: 10 } },
+          { in: 'query', name: 'page', schema: { type: 'integer', minimum: 1, default: 1 }, description: 'Page number (≥ 1)' },
+          { in: 'query', name: 'limit', schema: { type: 'integer', minimum: 1, maximum: 50, default: 10 }, description: 'Page size (1–50)' },
+          { in: 'query', name: 'currency', schema: { type: 'string', minLength: 3, maxLength: 3 }, description: 'Optional ISO 4217 filter' },
         ],
         responses: {
-          '200': { description: 'Success' },
+          '200': {
+            description: 'Success',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ZakatHistoryResponse' },
+              },
+            },
+          },
+          '400': { description: 'Validation Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ValidationErrorResponse' } } } },
           '401': { description: 'Unauthorized' },
           '500': { description: 'Server Error' },
         },

@@ -377,18 +377,40 @@ export type AiAssistantFeedbackBody = z.infer<typeof aiAssistantFeedbackSchema>
 // ZAKAT — HISTORY QUERY
 // ============================================================
 
+/** Positive integer query-string helper (rejects "", "abc", "1.5", "0", "-1"). */
+const positiveIntQuery = (opts: {
+  field: string
+  defaultValue: number
+  max?: number
+}) =>
+  z
+    .string()
+    .optional()
+    .default(String(opts.defaultValue))
+    .refine((v) => /^\d+$/.test(v), {
+      message: `${opts.field} must be a positive integer`,
+    })
+    .transform((v) => parseInt(v, 10))
+    .refine((v) => v >= 1, { message: `${opts.field} must be >= 1` })
+    .refine(
+      (v) => (opts.max === undefined ? true : v <= opts.max),
+      {
+        message:
+          opts.max !== undefined
+            ? `${opts.field} must be between 1 and ${opts.max}`
+            : `${opts.field} is out of range`,
+      },
+    )
+
 export const zakatHistoryQuerySchema = z.object({
-  currency: z.string().length(3).optional(),
-  page: z
+  currency: z
     .string()
-    .optional()
-    .transform((v) => (v ? parseInt(v, 10) : 1))
-    .refine((v) => v >= 1, { message: 'page must be >= 1' }),
-  limit: z
-    .string()
-    .optional()
-    .transform((v) => (v ? parseInt(v, 10) : 10))
-    .refine((v) => v >= 1 && v <= 50, { message: 'limit must be between 1 and 50' }),
+    .length(3, 'currency must be a 3-letter ISO 4217 code')
+    .regex(/^[A-Za-z]{3}$/, 'currency must be 3 alphabetic characters')
+    .transform((v) => v.toUpperCase())
+    .optional(),
+  page: positiveIntQuery({ field: 'page', defaultValue: 1 }),
+  limit: positiveIntQuery({ field: 'limit', defaultValue: 10, max: 50 }),
 })
 
 export type ZakatHistoryQuery = z.infer<typeof zakatHistoryQuerySchema>

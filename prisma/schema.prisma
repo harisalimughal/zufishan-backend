@@ -505,6 +505,8 @@ model ZakatCalculation {
 
   @@index([userId])
   @@index([createdAt])
+  // Composite: current-user history ordered by newest first
+  @@index([userId, createdAt(sort: Desc)])
   @@map("zakat_calculations")
 }
 
