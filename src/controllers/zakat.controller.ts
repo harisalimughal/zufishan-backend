@@ -1,7 +1,11 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '../utils/asyncHandler'
 import { zakatNisabService, type NisabMethodology } from '../services/zakat.service'
-import type { NisabRateQuery } from '../validators/utility.validator'
+import { zakatCalculatorService } from '../services/zakatCalculator.service'
+import type {
+  NisabRateQuery,
+  ZakatCalculateBody,
+} from '../validators/utility.validator'
 
 export const zakatController = {
   /**
@@ -32,11 +36,12 @@ export const zakatController = {
 
   /**
    * POST /api/v1/utilities/zakat/calculate
-   * Body: ZakatCalculateBody
+   * Body: { assets: [{ category, value, ... }], madhab, nisabThreshold?, currency? }
    */
-  calculateZakat: asyncHandler(async (_req: Request, res: Response) => {
-    // TODO: implement calculateZakat in zakatNisabService
-    res.status(501).json({ success: false, message: 'Zakat calculator not yet implemented' })
+  calculateZakat: asyncHandler(async (req: Request, res: Response) => {
+    const body = req.body as ZakatCalculateBody
+    const data = zakatCalculatorService.calculate(body)
+    res.status(200).json({ success: true, message: 'Zakat calculated', data })
   }),
 
   /**

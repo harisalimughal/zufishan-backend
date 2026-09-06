@@ -206,17 +206,108 @@ export type NisabRateQuery = z.infer<typeof nisabRateQuerySchema>
 // ZAKAT — CALCULATE
 // ============================================================
 
+const zakatAssetCategorySchema = z.enum(
+  [
+    'cash',
+    'gold_silver',
+    'business_inventory',
+    'agricultural_produce',
+    'livestock',
+    'investments',
+  ],
+  {
+    errorMap: () => ({
+      message:
+        'category must be one of: cash, gold_silver, business_inventory, ' +
+        'agricultural_produce, livestock, investments',
+    }),
+  },
+)
+
+const zakatAssetSchema = z
+  .object({
+    category: zakatAssetCategorySchema,
+    value: z
+      .number({ invalid_type_error: 'value must be a number' })
+      .finite('value must be a finite number')
+      .nonnegative('value must be ≥ 0'),
+    irrigation: z
+      .enum(['natural', 'artificial', 'mixed'], {
+        errorMap: () => ({
+          message: 'irrigation must be natural, artificial, or mixed',
+        }),
+      })
+      .optional(),
+    animalType: z
+      .enum(['camels', 'cattle', 'sheep_goats'], {
+        errorMap: () => ({
+          message: 'animalType must be camels, cattle, or sheep_goats',
+        }),
+      })
+      .optional(),
+    headCount: z
+      .number({ invalid_type_error: 'headCount must be a number' })
+      .int('headCount must be an integer')
+      .nonnegative('headCount must be ≥ 0')
+      .optional(),
+  })
+  .superRefine((asset, ctx) => {
+    if (asset.category === 'agricultural_produce' && !asset.irrigation) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'agricultural_produce requires irrigation (natural | artificial | mixed)',
+        path: ['irrigation'],
+      })
+    }
+    if (asset.category === 'livestock') {
+      if (!asset.animalType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'livestock requires animalType (camels | cattle | sheep_goats)',
+          path: ['animalType'],
+        })
+      }
+      if (asset.headCount === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'livestock requires headCount (classical tables are headcount-based)',
+          path: ['headCount'],
+        })
+      }
+    }
+  })
+
 export const zakatCalculateSchema = z.object({
-  goldGrams: z.number().nonnegative().optional().default(0),
-  silverGrams: z.number().nonnegative().optional().default(0),
-  cashSavings: z.number().nonnegative().optional().default(0),
-  investments: z.number().nonnegative().optional().default(0),
-  businessAssets: z.number().nonnegative().optional().default(0),
-  receivables: z.number().nonnegative().optional().default(0),
-  currency: z.string().length(3).optional().default('USD'),  // ISO 4217 code
+  assets: z
+    .array(zakatAssetSchema)
+    .min(1, 'At least one asset is required'),
+  madhab: z.enum(['hanafi', 'shafi', 'maliki', 'hanbali'], {
+    errorMap: () => ({
+      message: 'madhab must be one of: hanafi, shafi, maliki, hanbali',
+    }),
+  }),
+  /**
+   * Optional nisāb gate for wealth categories.
+   * Fetch from GET /zakat/nisab-rate (e.g. lowerNisabValue).
+   */
+  nisabThreshold: z
+    .number()
+    .finite()
+    .nonnegative('nisabThreshold must be ≥ 0')
+    .optional(),
+  currency: z
+    .string()
+    .length(3, 'currency must be a 3-letter ISO 4217 code')
+    .regex(/^[A-Za-z]{3}$/, 'currency must be 3 alphabetic characters')
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .default('USD'),
 })
 
 export type ZakatCalculateBody = z.infer<typeof zakatCalculateSchema>
+export type ZakatAssetBody = z.infer<typeof zakatAssetSchema>
 
 // ============================================================
 // AZKAR

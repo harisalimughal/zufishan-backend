@@ -172,13 +172,56 @@ export const swaggerDocument = {
       },
       ZakatCalculateRequest: {
         type: 'object',
+        required: ['assets', 'madhab'],
         properties: {
-          goldGrams: { type: 'number', example: 100 },
-          silverGrams: { type: 'number', example: 0 },
-          cashSavings: { type: 'number', example: 10000 },
-          investments: { type: 'number', example: 2000 },
-          businessAssets: { type: 'number', example: 0 },
-          receivables: { type: 'number', example: 500 },
+          assets: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              required: ['category', 'value'],
+              properties: {
+                category: {
+                  type: 'string',
+                  enum: [
+                    'cash',
+                    'gold_silver',
+                    'business_inventory',
+                    'agricultural_produce',
+                    'livestock',
+                    'investments',
+                  ],
+                  example: 'cash',
+                },
+                value: { type: 'number', example: 10000, description: 'Monetary market value (≥ 0)' },
+                irrigation: {
+                  type: 'string',
+                  enum: ['natural', 'artificial', 'mixed'],
+                  description: 'Required for agricultural_produce',
+                },
+                animalType: {
+                  type: 'string',
+                  enum: ['camels', 'cattle', 'sheep_goats'],
+                  description: 'Required for livestock',
+                },
+                headCount: {
+                  type: 'integer',
+                  example: 40,
+                  description: 'Required for livestock — classical tables are headcount-based',
+                },
+              },
+            },
+          },
+          madhab: {
+            type: 'string',
+            enum: ['hanafi', 'shafi', 'maliki', 'hanbali'],
+            example: 'hanafi',
+          },
+          nisabThreshold: {
+            type: 'number',
+            example: 565.25,
+            description: 'Optional wealth nisāb gate (e.g. lowerNisabValue from /nisab-rate)',
+          },
           currency: { type: 'string', example: 'USD' },
         },
       },
@@ -190,12 +233,15 @@ export const swaggerDocument = {
           data: {
             type: 'object',
             properties: {
-              totalZakatableAssets: { type: 'number', example: 20050.0 },
-              nisabThreshold: { type: 'number', example: 6417.5 },
-              zakatableAboveNisab: { type: 'boolean', example: true },
-              zakatDue: { type: 'number', example: 501.25 },
-              ratePercentage: { type: 'number', example: 2.5 },
+              madhab: { type: 'string', example: 'hanafi' },
               currency: { type: 'string', example: 'USD' },
+              totalAssets: { type: 'number', example: 20050.0 },
+              totalWealthAssets: { type: 'number', example: 15000.0 },
+              totalZakat: { type: 'number', example: 501.25 },
+              wealthMeetsNisab: { type: 'boolean', nullable: true, example: true },
+              categoryBreakdown: { type: 'array', items: { type: 'object' } },
+              categorySubtotals: { type: 'object' },
+              disclaimer: { type: 'string' },
             },
           },
         },
