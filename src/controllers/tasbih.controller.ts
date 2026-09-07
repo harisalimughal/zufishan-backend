@@ -1,11 +1,12 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '../utils/asyncHandler'
 import { tasbihService } from '../services/tasbih.service'
+import type { TasbihStatsQuery } from '../validators/utility.validator'
 
 export const tasbihController = {
   /**
    * POST /api/v1/utilities/tasbih/sessions
-   * Body: TasbihSaveBody
+   * Body: TasbihSaveBody (validated by tasbihSaveSchema middleware)
    * Auth: required
    */
   saveSession: asyncHandler(async (req: Request, res: Response) => {
@@ -25,12 +26,15 @@ export const tasbihController = {
   }),
 
   /**
-   * GET /api/v1/utilities/tasbih/stats
+   * GET /api/v1/utilities/tasbih/stats?range=daily|weekly
    * Auth: required
+   *
+   * `req.query` is already parsed by the `tasbihStatsQuerySchema` middleware.
    */
   getStats: asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user!.id
-    const data = await tasbihService.getStats(userId)
+    const { range } = req.query as unknown as TasbihStatsQuery
+    const data = await tasbihService.getStats(userId, range)
     res.status(200).json({ success: true, message: 'Tasbih stats fetched', data })
   }),
 }

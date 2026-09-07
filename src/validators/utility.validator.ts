@@ -350,6 +350,22 @@ export const tasbihSaveSchema = z.object({
 
 export type TasbihSaveBody = z.infer<typeof tasbihSaveSchema>
 
+export const tasbihStatsQuerySchema = z.object({
+  /**
+   * daily  → today's sessions aggregated into a single DailyStats object.
+   * weekly → current week (Mon–Sun) with per-day breakdown.
+   * Defaults to 'daily' when omitted.
+   */
+  range: z
+    .enum(['daily', 'weekly'], {
+      errorMap: () => ({ message: "range must be 'daily' or 'weekly'" }),
+    })
+    .optional()
+    .default('daily'),
+})
+
+export type TasbihStatsQuery = z.infer<typeof tasbihStatsQuerySchema>
+
 // ============================================================
 // AI ASSISTANT
 // ============================================================
@@ -438,7 +454,19 @@ export const azkarItemsQuerySchema = z.object({
     .optional()
     .transform((v) => (v ? parseInt(v, 10) : 20))
     .refine((v) => v >= 1 && v <= 100, { message: 'limit must be between 1 and 100' }),
+  /**
+   * Optional case-insensitive substring filter.
+   * Matched against arabic text, transliteration, and translation.
+   * Blank strings are normalised to undefined (no filter applied).
+   */
+  search: z
+    .string()
+    .max(100, 'search must be 100 characters or fewer')
+    .optional()
+    .transform((v) => (v && v.trim() !== '' ? v.trim() : undefined)),
 })
+
+export type AzkarItemsQuery = z.infer<typeof azkarItemsQuerySchema>
 
 // ============================================================
 // ADMIN — AI LOGS QUERY

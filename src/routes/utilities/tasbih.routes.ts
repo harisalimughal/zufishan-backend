@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { tasbihController } from '../../controllers/tasbih.controller'
 import { authenticate } from '../../middlewares/auth.middleware'
 import { validate } from '../../middlewares/validate.middleware'
-import { tasbihSaveSchema } from '../../validators/utility.validator'
+import { tasbihSaveSchema, tasbihStatsQuerySchema } from '../../validators/utility.validator'
 
 const router = Router()
 
@@ -19,7 +19,11 @@ router.post(
 // GET /api/v1/utilities/tasbih/sessions  (history)
 router.get('/sessions', tasbihController.getHistory)
 
-// GET /api/v1/utilities/tasbih/stats
-router.get('/stats', tasbihController.getStats)
+// GET /api/v1/utilities/tasbih/stats?range=daily|weekly
+router.get(
+  '/stats',
+  validate(tasbihStatsQuerySchema, 'query'),
+  tasbihController.getStats,
+)
 
 export default router
