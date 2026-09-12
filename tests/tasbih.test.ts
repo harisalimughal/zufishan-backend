@@ -120,15 +120,15 @@ describe('tasbihService.saveSession', () => {
     ).rejects.toMatchObject({ statusCode: 400 })
   })
 
-  it('rejects count exceeding MAX_COUNT (9999) with 400', async () => {
+  it('rejects count exceeding MAX_COUNT (10000) with 400', async () => {
     await expect(
-      tasbihService.saveSession('user-abc', { phrase: 'SubhanAllah', count: 10_000, target: 33 }),
+      tasbihService.saveSession('user-abc', { phrase: 'SubhanAllah', count: 10_001, target: 33 }),
     ).rejects.toMatchObject({ statusCode: 400 })
   })
 
-  it('rejects target exceeding MAX_TARGET (9999) with 400', async () => {
+  it('rejects target exceeding MAX_TARGET (10000) with 400', async () => {
     await expect(
-      tasbihService.saveSession('user-abc', { phrase: 'SubhanAllah', count: 1, target: 10_000 }),
+      tasbihService.saveSession('user-abc', { phrase: 'SubhanAllah', count: 1, target: 10_001 }),
     ).rejects.toMatchObject({ statusCode: 400 })
   })
 

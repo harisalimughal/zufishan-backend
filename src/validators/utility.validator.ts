@@ -378,14 +378,58 @@ export const aiAssistantMessageSchema = z.object({
 export type AiAssistantMessageBody = z.infer<typeof aiAssistantMessageSchema>
 
 // ============================================================
+// AI ASSISTANT — HISTORY QUERY
+// ============================================================
+
+export const aiHistoryQuerySchema = z.object({
+  /** If provided, returns message turns for this conversation; if omitted, returns conversation threads */
+  conversationId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() !== '' ? v.trim() : undefined)),
+  page: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 1))
+    .refine((v) => v >= 1, { message: 'page must be >= 1' }),
+  limit: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseInt(v, 10) : 20))
+    .refine((v) => v >= 1 && v <= 100, { message: 'limit must be between 1 and 100' }),
+})
+
+export type AiHistoryQuery = z.infer<typeof aiHistoryQuerySchema>
+
+// ============================================================
 // AI ASSISTANT — FEEDBACK
 // ============================================================
 
-export const aiAssistantFeedbackSchema = z.object({
-  logId: z.string().cuid('Invalid log ID'),
-  rating: z.enum(['helpful', 'not_helpful', 'inappropriate']),
-  comment: z.string().max(500).optional(),
-})
+export const aiAssistantFeedbackSchema = z
+  .object({
+    /** Identifier for the assistant message / audit log turn (accepts messageId or logId) */
+    messageId: z.string().min(1, 'messageId cannot be empty').optional(),
+    logId: z.string().min(1, 'logId cannot be empty').optional(),
+    /** Rating supports thumbs up/down as well as descriptive ratings */
+    rating: z.enum(
+      ['thumbs_up', 'thumbs_down', 'helpful', 'not_helpful', 'inappropriate'],
+      {
+        errorMap: () => ({
+          message:
+            "rating must be one of: 'thumbs_up', 'thumbs_down', 'helpful', 'not_helpful', 'inappropriate'",
+        }),
+      },
+    ),
+    comment: z
+      .string()
+      .max(500, 'Comment must be 500 characters or fewer')
+      .optional()
+      .transform((v) => (v && v.trim() !== '' ? v.trim() : undefined)),
+  })
+  .refine((data) => Boolean(data.messageId || data.logId), {
+    message: 'Either messageId or logId must be provided',
+    path: ['messageId'],
+  })
 
 export type AiAssistantFeedbackBody = z.infer<typeof aiAssistantFeedbackSchema>
 
@@ -472,9 +516,36 @@ export type AzkarItemsQuery = z.infer<typeof azkarItemsQuerySchema>
 // ADMIN — AI LOGS QUERY
 // ============================================================
 
+// ─── Boolean query param helper ─────────────────────────────────────────────
+const boolQuery = () =>
+  z.enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === undefined ? undefined : v === 'true')
+
 export const adminAiLogsQuerySchema = z.object({
-  userId: z.string().optional(),
+  // Identity filters
+  userId:         z.string().optional(),
+  conversationId: z.string().optional(),
+  // Behaviour filters
+  isRedirected:  boolQuery(),
+  isAdversarial: boolQuery(),
+  isOutOfScope:  boolQuery(),
+  isFlagged:     boolQuery(),
+  // Classification filters
+  topicCategory: z.enum([
+    'PRAYER_WORSHIP', 'FOOD_DRINK', 'FINANCIAL',
+    'MARRIAGE_FAMILY', 'GENERAL_RULING', 'ADVERSARIAL',
+  ]).optional(),
+  errorStatus: z.enum([
+    'FIQHI_REDIRECT', 'SCOPE_REJECTED', 'TIMEOUT', 'PROVIDER_ERROR', 'RATE_LIMITED',
+  ]).optional(),
   modelUsed: z.string().optional(),
+  rating:    z.enum(['helpful', 'not_helpful', 'inappropriate']).optional(),
+  role:      z.enum(['USER', 'ASSISTANT']).optional(),
+  // Date range (ISO 8601 strings from query params)
+  dateFrom: z.string().optional().transform((v) => v ? new Date(v) : undefined),
+  dateTo:   z.string().optional().transform((v) => v ? new Date(v) : undefined),
+  // Pagination
   page: z
     .string()
     .optional()
@@ -488,3 +559,53 @@ export const adminAiLogsQuerySchema = z.object({
 })
 
 export type AdminAiLogsQuery = z.infer<typeof adminAiLogsQuerySchema>
+
+// ============================================================
+// AI ASSISTANT — ADMIN INGEST
+// ============================================================
+
+export const adminIngestSchema = z.object({
+  sourceType: z.enum(['HELP_DOC', 'COURSE_METADATA', 'MARKETPLACE_METADATA', 'FAQ'], {
+    errorMap: () => ({
+      message: 'sourceType must be one of: HELP_DOC, COURSE_METADATA, MARKETPLACE_METADATA, FAQ',
+    }),
+  }),
+  title: z
+    .string()
+    .min(3, 'title must be at least 3 characters')
+    .max(200, 'title must be 200 characters or fewer'),
+  content: z
+    .string()
+    .min(20, 'content must be at least 20 characters')
+    .max(50_000, 'content must be 50,000 characters or fewer'),
+  sourceId: z.string().optional(),
+  url: z
+    .string()
+    .url('url must be a valid URL')
+    .optional()
+    .or(z.string().startsWith('/').optional()),
+})
+
+export type AdminIngestBody = z.infer<typeof adminIngestSchema>
+
+// ============================================================
+// ADMIN — FLAG CONVERSATION / LOG
+// ============================================================
+
+export const flagConversationSchema = z.object({
+  isFlagged: z.boolean({ required_error: 'isFlagged (boolean) is required' }),
+  reason: z
+    .string()
+    .max(500, 'Reason must be 500 characters or fewer')
+    .optional(),
+})
+
+export type FlagConversationBody = z.infer<typeof flagConversationSchema>
+
+export const flagLogSchema = z.object({
+  isFlagged: z.boolean({ required_error: 'isFlagged (boolean) is required' }),
+})
+
+export type FlagLogBody = z.infer<typeof flagLogSchema>
+
+

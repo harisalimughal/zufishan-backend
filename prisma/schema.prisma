@@ -409,6 +409,13 @@ enum AiAssistantRole {
   ASSISTANT
 }
 
+enum RagSourceType {
+  HELP_DOC
+  COURSE_METADATA
+  MARKETPLACE_METADATA
+  FAQ
+}
+
 // ── 7a. Prayer Time Cache ──────────────────
 // Caches external API responses by location + date + method + asrMethod.
 // Avoids repeated external calls for the same coordinates on the same day.
@@ -583,13 +590,22 @@ model AiAssistantConversation {
 
   title     String? // Auto-generated from first message or user-set
   isActive  Boolean  @default(true)
+
+  // Admin flagging — moderator can mark a conversation for human review
+  isFlagged  Boolean   @default(false)
+  flaggedAt  DateTime?
+  flagReason String?   // e.g. "Inappropriate content", "Policy violation"
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   logs AiAssistantLog[]
 
   @@index([userId])
-  @@index([userId, isActive]) // filter active conversations per user
+  @@index([userId, isActive])              // filter active conversations per user
+  @@index([userId, updatedAt])             // conversation ordering newest first
+  @@index([userId, isActive, updatedAt])   // active conversations newest first
+  @@index([isFlagged])                     // admin flagged conversations
   @@map("ai_assistant_conversations")
 }
 
@@ -602,20 +618,104 @@ model AiAssistantLog {
   conversation   AiAssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   role    AiAssistantRole // USER or ASSISTANT
-  content String // Full message text
+  content String          // Full message text
 
-  // Token accounting for cost tracking / rate limiting
+  // ── Token accounting ─────────────────────────────────────────
   promptTokens     Int? // tokens in the user's prompt
   completionTokens Int? // tokens in the AI's response
   totalTokens      Int? // total billed tokens for this turn
 
-  // AI provider metadata
-  modelUsed String? // e.g. "gemini-1.5-flash"
-  latencyMs Int? // response time in milliseconds
+  // ── AI provider metadata ──────────────────────────────────────
+  modelUsed String? // e.g. "gemini-1.5-flash", "fiqhi-guardrail"
+  latencyMs Int?    // response time in milliseconds
+
+  // ── Topic / routing classification ───────────────────────────
+  // Set by the guardrail classifiers before any LLM call.
+  topicCategory String?  // FatwaCategory value: "PRAYER_WORSHIP", "FINANCIAL", etc.
+  isRedirected  Boolean  @default(false) // true = fiqhi scholar redirect issued
+  isAdversarial Boolean  @default(false) // true = adversarial bypass attempt detected
+  isOutOfScope  Boolean  @default(false) // true = query had no relevant RAG results
+
+  // ── Retrieval metadata ────────────────────────────────────────
+  retrievedChunkCount Int?   // number of RAG chunks retrieved
+  topSimilarityScore  Float? // highest cosine similarity score in the result set
+
+  // ── Error / status tracking ───────────────────────────────────
+  // null = success | "FIQHI_REDIRECT" | "SCOPE_REJECTED" | "TIMEOUT" |
+  // "PROVIDER_ERROR" | "RATE_LIMITED"
+  errorStatus String?
+
+  // ── Admin flagging ────────────────────────────────────────────
+  isFlagged Boolean @default(false) // admin flagged this turn for review
+
+  // ── User feedback ──────────────────────────────────────────────
+  rating          String?  // "helpful" | "not_helpful" | "inappropriate"
+  feedbackComment String?  // optional free-text comment
 
   createdAt DateTime @default(now())
 
   @@index([conversationId])
-  @@index([conversationId, createdAt]) // chronological message fetch
+  @@index([conversationId, createdAt])   // chronological message fetch
+  @@index([createdAt])                   // admin logs: newest first
+  @@index([isRedirected])                // filter scholar redirects
+  @@index([isAdversarial])               // filter adversarial attempts
+  @@index([isOutOfScope])                // filter out-of-scope rejections
+  @@index([isFlagged])                   // filter flagged log entries
+  @@index([topicCategory])               // filter by fiqhi category
+  @@index([errorStatus])                 // filter by error status
+  @@index([rating])                      // filter by user feedback rating
   @@map("ai_assistant_logs")
+}
+
+// ==========================================
+// 8. RAG KNOWLEDGE BASE
+// ==========================================
+
+// ── 8a. RAG Documents ─────────────────────
+// Top-level source documents ingested into the RAG knowledge base.
+// Each document corresponds to one approved Zufishan content source.
+model RagDocument {
+  id         String        @id @default(cuid())
+  sourceType RagSourceType
+
+  // Optional FK to a platform entity (e.g., Course)
+  sourceId   String? // e.g., Course.id for COURSE_METADATA
+
+  title    String  // Human-readable title for citation
+  content  String  // Full raw text (used during ingestion only)
+  url      String? // Deep-link into the platform UI (optional)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks RagChunk[]
+
+  @@index([sourceType, isActive])
+  @@index([sourceId])
+  @@map("rag_documents")
+}
+
+// ── 8b. RAG Chunks ────────────────────────
+// Text chunks derived from RagDocuments. Each chunk carries its
+// embedding vector (stored as JSONB float array) for semantic search.
+model RagChunk {
+  id         String      @id @default(cuid())
+  documentId String
+  document   RagDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex Int    // 0-based position within the parent document
+  content    String // The raw text of this chunk
+
+  // Embedding stored as JSON array of floats (e.g. 768-dim Gemini embedding)
+  // Cosine similarity is computed in-application over a pre-filtered candidate set.
+  embedding  Json
+
+  tokenCount Int? // Approximate token count of this chunk
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, chunkIndex]) // one chunk per index per document
+  @@index([documentId])
+  @@map("rag_chunks")
 }

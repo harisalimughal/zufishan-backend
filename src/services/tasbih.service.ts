@@ -21,8 +21,8 @@ import type { TasbihSaveBody } from '../validators/utility.validator'
 
 // ─── Business-rule constants ──────────────────────────────────────────────────
 
-const MAX_COUNT = 9_999   // guard against absurd values slipping past the validator
-const MAX_TARGET = 9_999
+const MAX_COUNT = 10_000   // guard against absurd values slipping past the validator
+const MAX_TARGET = 10_000
 const VALID_TARGETS = new Set([33, 99, 100, 1000]) // common Islamic dhikr counts
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -34,4 +34,11 @@ router.use('/azkar', azkarRoutes)
 router.use('/tasbih', tasbihRoutes)
 router.use('/ai-assistant', aiAssistantRoutes)
 
+// Alias for Prompt 7 roadmap endpoint: /api/v1/utilities/admin/ai-assistant/*
+router.use('/admin/ai-assistant', (req, res, next) => {
+  req.url = '/admin' + req.url
+  return aiAssistantRoutes(req, res, next)
+})
+
 export default router
+
