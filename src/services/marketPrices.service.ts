@@ -26,6 +26,7 @@
 
 import fetch from 'node-fetch'
 import { logger } from '../utils/logger'
+import { env } from '../config/env'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -53,14 +54,14 @@ export async function fetchLiveMetalPrices(currency = 'USD'): Promise<LiveMetalP
   const upperCurrency = currency.toUpperCase()
 
   // --- Strategy 1: GoldAPI.io (GOLDAPI_KEY env var) ---
-  const goldApiKey = process.env['GOLDAPI_KEY']
+  const goldApiKey = env.GOLDAPI_KEY
   if (goldApiKey) {
     const result = await tryGoldApi(goldApiKey, upperCurrency)
     if (result) return result
   }
 
   // --- Strategy 2: MetalPriceAPI.com (METALPRICEAPI_KEY env var) ---
-  const metalKey = process.env['METALPRICEAPI_KEY']
+  const metalKey = env.METALPRICEAPI_KEY
   if (metalKey) {
     const result = await tryMetalPriceApi(metalKey, upperCurrency)
     if (result) return result

@@ -282,7 +282,8 @@ const zakatAssetSchema = z
 export const zakatCalculateSchema = z.object({
   assets: z
     .array(zakatAssetSchema)
-    .min(1, 'At least one asset is required'),
+    .min(1, 'At least one asset is required')
+    .max(100, 'assets cannot exceed 100 items'),
   madhab: z.enum(['hanafi', 'shafi', 'maliki', 'hanbali'], {
     errorMap: () => ({
       message: 'madhab must be one of: hanafi, shafi, maliki, hanbali',
@@ -607,5 +608,27 @@ export const flagLogSchema = z.object({
 })
 
 export type FlagLogBody = z.infer<typeof flagLogSchema>
+
+// ============================================================
+// AI ASSISTANT — PARAM SCHEMAS
+// ============================================================
+
+export const aiConversationParamSchema = z.object({
+  conversationId: z
+    .string()
+    .min(1, 'conversationId is required')
+    .max(128, 'conversationId is too long'),
+})
+
+export type AiConversationParam = z.infer<typeof aiConversationParamSchema>
+
+export const aiLogParamSchema = z.object({
+  logId: z
+    .string()
+    .min(1, 'logId is required')
+    .max(128, 'logId is too long'),
+})
+
+export type AiLogParam = z.infer<typeof aiLogParamSchema>
 
 

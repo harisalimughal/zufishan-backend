@@ -11,6 +11,8 @@ import {
   adminIngestSchema,
   flagConversationSchema,
   flagLogSchema,
+  aiConversationParamSchema,
+  aiLogParamSchema,
 } from '../../validators/utility.validator'
 
 const router = Router()
@@ -24,7 +26,12 @@ router.post('/chat',     authenticate, validate(aiAssistantMessageSchema, 'body'
 router.get('/history',   authenticate, validate(aiHistoryQuerySchema, 'query'), aiAssistantController.getHistory)
 
 // GET  /api/v1/utilities/ai-assistant/conversations/:conversationId
-router.get('/conversations/:conversationId', authenticate, aiAssistantController.getConversationHistory)
+router.get(
+  '/conversations/:conversationId',
+  authenticate,
+  validate(aiConversationParamSchema, 'params'),
+  aiAssistantController.getConversationHistory,
+)
 
 // POST /api/v1/utilities/ai-assistant/feedback
 router.post('/feedback', authenticate, validate(aiAssistantFeedbackSchema, 'body'), aiAssistantController.submitFeedback)
@@ -59,6 +66,7 @@ router.get(
   '/admin/logs/:logId',
   authenticate,
   requireAdmin,
+  validate(aiLogParamSchema, 'params'),
   aiAssistantController.getAdminLogById,
 )
 
@@ -72,6 +80,7 @@ router.patch(
   '/admin/conversations/:conversationId/flag',
   authenticate,
   requireAdmin,
+  validate(aiConversationParamSchema, 'params'),
   validate(flagConversationSchema, 'body'),
   aiAssistantController.flagConversation,
 )
@@ -86,6 +95,7 @@ router.patch(
   '/admin/logs/:logId/flag',
   authenticate,
   requireAdmin,
+  validate(aiLogParamSchema, 'params'),
   validate(flagLogSchema, 'body'),
   aiAssistantController.flagLog,
 )

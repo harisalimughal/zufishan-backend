@@ -16,6 +16,9 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   // AI provider
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
+  // Optional market price providers for Zakat Nisab live rates
+  GOLDAPI_KEY: z.string().optional(),
+  METALPRICEAPI_KEY: z.string().optional(),
 });
 
 const result = envSchema.safeParse(process.env);

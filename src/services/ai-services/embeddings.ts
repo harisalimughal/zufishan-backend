@@ -8,6 +8,7 @@
  */
 import { env } from '../../config/env'
 import { ApiError } from '../../utils/apiError'
+import { logger } from '../../utils/logger'
 
 const EMBED_MODEL = 'text-embedding-004'
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -34,7 +35,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '')
-      throw ApiError.internal(`Gemini embedding failed (${res.status}): ${body}`)
+      logger.error({ status: res.status, body }, 'Gemini embedding failed')
+      throw ApiError.internal('Failed to process AI embeddings.')
     }
 
     const data = (await res.json()) as { embedding: { values: number[] } }
@@ -44,7 +46,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       throw ApiError.internal('Gemini embedding request timed out')
     }
     if (err instanceof ApiError) throw err
-    throw ApiError.internal(`Embedding error: ${(err as Error).message}`)
+    logger.error({ err }, 'Unexpected AI embedding error')
+    throw ApiError.internal('Failed to process AI embeddings.')
   } finally {
     clearTimeout(timer)
   }

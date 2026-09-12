@@ -16,6 +16,7 @@
 
 import { env } from '../../config/env'
 import { ApiError } from '../../utils/apiError'
+import { logger } from '../../utils/logger'
 
 const GENERATION_MODEL = 'gemini-1.5-flash'
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -92,7 +93,8 @@ export async function generateAnswer(
 
     if (!res.ok) {
       const body = await res.text().catch(() => '')
-      throw ApiError.internal(`Gemini generation failed (${res.status}): ${body}`)
+      logger.error({ status: res.status, body }, 'Gemini generation failed')
+      throw ApiError.internal('Failed to generate AI response. Please try again later.')
     }
 
     const data = (await res.json()) as GeminiResponse
@@ -133,7 +135,8 @@ export async function generateAnswer(
       throw ApiError.internal('AI provider did not respond in time. Please try again.')
     }
     if (err instanceof ApiError) throw err
-    throw ApiError.internal(`AI generation error: ${(err as Error).message}`)
+    logger.error({ err }, 'Unexpected AI generation error')
+    throw ApiError.internal('Failed to generate AI response. Please try again later.')
   } finally {
     clearTimeout(timer)
   }
