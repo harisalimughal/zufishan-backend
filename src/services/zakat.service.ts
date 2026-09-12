@@ -113,6 +113,17 @@ export interface NisabRateResult {
 
 export const zakatNisabService = {
   /**
+   * GET /api/v1/utilities/zakat/methodologies
+   * Returns available Nisab standards and default methodology.
+   */
+  getMethodologies: () => {
+    return {
+      default: DEFAULT_METHODOLOGY,
+      methodologies: NISAB_STANDARDS,
+    }
+  },
+
+  /**
    * GET /api/v1/utilities/zakat/nisab-rate?currency=USD&methodology=SOUTH_ASIAN
    *
    * Returns today's Nisab rate. Cached once per day in PostgreSQL.
@@ -189,18 +200,6 @@ export const zakatNisabService = {
       'Configure GOLDAPI_KEY or METALPRICEAPI_KEY environment variables to enable live pricing.',
     )
   },
-
-  /** Expose the available methodology standards for documentation / frontend display */
-  getMethodologies: () =>
-    Object.entries(NISAB_STANDARDS).map(([key, v]) => ({
-      key,
-      description: v.description,
-      reference:   v.reference,
-      goldGrams:   v.goldGrams,
-      goldTola:    v.goldTola,
-      silverGrams: v.silverGrams,
-      silverTola:  v.silverTola,
-    })),
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
