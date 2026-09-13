@@ -14,8 +14,19 @@ import userRoutes from "./user.routes";
 import achievementRoutes from "./achievement.routes";
 import enrollmentRoutes from "./enrollment.routes";
 import attendanceRoutes from "./attendance.routes";
+import marketplaceAuthRoutes from "./marketplace-auth.routes";
+import marketplaceVendorRoutes from "./marketplace-vendor.routes";
+import marketplaceProductRoutes from "./marketplace-product.routes";
+import marketplaceCartRoutes from "./marketplace-cart.routes";
+import marketplaceOrderRoutes from "./marketplace-order.routes";
+import marketplaceVendorMarketRoutes from "./marketplace-vendor-market.routes";
+import marketplaceExtensionRoutes from "./marketplace-extension.routes";
+import marketplacePaymentRoutes from "./marketplace-payment.routes";
+import { MarketplaceProductController } from "../controllers/marketplace-product.controller";
+
 
 const router = Router();
+const marketplaceProductController = new MarketplaceProductController();
 
 // Auth & Admin
 router.use("/auth", authRoutes);
@@ -41,6 +52,18 @@ router.use("/attendance", attendanceRoutes);
 router.use("/messages", messageRoutes);
 router.use("/group-messages", groupMessageRoutes);
 router.use("/calendar-events", calendarEventRoutes);
+
+// Marketplace
+
+router.use("/marketplace", marketplaceAuthRoutes);
+router.get("/marketplace/categories", marketplaceProductController.listCategories);
+router.use("/marketplace/vendors", marketplaceVendorRoutes);
+router.use("/marketplace/vendor", marketplaceVendorMarketRoutes);
+router.use("/marketplace/products", marketplaceProductRoutes);
+router.use("/marketplace/cart", marketplaceCartRoutes);
+router.use("/marketplace/orders", marketplaceOrderRoutes);
+router.use("/marketplace/payments", marketplacePaymentRoutes);
+router.use("/marketplace", marketplaceExtensionRoutes);
 
 router.get("/health", (req, res) => {
   res.status(200).json({
