@@ -7,7 +7,6 @@ import { validate } from "../middlewares/validate.middleware";
 import {
   registerSchema,
   loginSchema,
-  marketplaceRefreshTokenSchema,
 } from "../validators/marketplace-auth.validator";
 
 const router = Router();
@@ -34,12 +33,6 @@ router.post(
   "/login",
   validate(loginSchema),
   controller.login
-);
-
-router.post(
-  "/refresh",
-  validate(marketplaceRefreshTokenSchema),
-  controller.refreshToken
 );
 
 export default router;

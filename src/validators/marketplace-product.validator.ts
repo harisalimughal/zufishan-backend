@@ -1,40 +1,38 @@
 import { z } from "zod";
 
-const productSchema = z.object({
+// Create Product Schema (Validates directly against req.body)
+export const createProductSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters").max(100),
   description: z.string().min(10, "Description must be at least 10 characters").max(1000),
-  shortDescription: z.string().max(250).optional(),
   categoryId: z.string().cuid("Category ID must be a valid CUID"),
   price: z.coerce.number().positive("Price must be greater than 0"),
-  discountPrice: z.coerce.number().positive("Discount price must be greater than 0").optional(),
   stock: z.coerce.number().int().min(0, "Stock cannot be negative"),
-  sku: z.string().max(80).optional(),
   imageUrl: z.string().url("Invalid image URL").optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.preprocess((value) => value === "true" ? true : value === "false" ? false : value, z.boolean()).optional(),
 });
 
-const discountIsNotGreaterThanPrice = (data: { price?: number; discountPrice?: number }) =>
-  data.discountPrice === undefined || data.price === undefined || data.discountPrice <= data.price;
-
-// Create Product Schema (Validates directly against req.body)
-export const createProductSchema = productSchema.refine(
-  discountIsNotGreaterThanPrice,
-  {
-    message: "Discount price cannot exceed price",
-    path: ["discountPrice"],
-  }
-);
-
 // Update Product Schema
-export const updateProductSchema = productSchema.partial().refine(
-  discountIsNotGreaterThanPrice,
-  {
-    message: "Discount price cannot exceed price",
-    path: ["discountPrice"],
-  }
-);
+export const updateProductSchema = createProductSchema.partial();
 
 // Product ID Param Schema
 export const productIdSchema = z.object({
-  productId: z.string().cuid("Invalid product ID format"),
+  id: z.string().cuid("Invalid product ID format"),
 });
+
+const optionalBoolean = z.preprocess(
+  (value) => value === "true" ? true : value === "false" ? false : value,
+  z.boolean()
+);
+
+export const productQuerySchema = z.object({
+  skip: z.coerce.number().int().min(0).optional(),
+  take: z.coerce.number().int().min(1).max(100).optional(),
+  categoryId: z.string().cuid().optional(),
+  minPrice: z.coerce.number().min(0).optional(),
+  maxPrice: z.coerce.number().min(0).optional(),
+  search: z.string().trim().max(100).optional(),
+  isActive: optionalBoolean.optional(),
+}).refine(
+  (value) => value.minPrice === undefined || value.maxPrice === undefined || value.minPrice <= value.maxPrice,
+  { message: "minPrice cannot exceed maxPrice", path: ["minPrice"] }
+);

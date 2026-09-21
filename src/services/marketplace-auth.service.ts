@@ -1,8 +1,7 @@
+import { ProductCategory } from "@prisma/client";
 import { MarketplaceAuthRepository } from "../repositories/marketplace-auth.repository";
 import { hashPassword, comparePassword } from "../utils/password";
 import { generateToken } from "../utils/jwt";
-import { generateRefreshToken } from "../utils/jwt";
-import { authRepository } from "../repositories/auth.repository";
 import { ApiError } from "../utils/apiError";
 
 export type RegisterInput =
@@ -11,7 +10,6 @@ export type RegisterInput =
       email: string;
       password: string;
       fullName: string;
-      contact: string;
       address: string;
       picture?: string;
     }
@@ -28,7 +26,7 @@ export type RegisterInput =
       businessRegistrationNumber: string;
       vendorPicture: string;
       businessPicture: string;
-      categories: string[];
+      categories?: string[];
     };
 
 export interface LoginInput {
@@ -53,7 +51,6 @@ export class MarketplaceAuthService {
         email: data.email,
         passwordHash,
         fullName: data.fullName,
-        contact: data.contact,
         address: data.address,
         picture: data.picture,
       });
@@ -74,21 +71,14 @@ export class MarketplaceAuthService {
       });
     }
 
-    const payload = {
+    const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
-    };
-    const token = generateToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-    await authRepository.createRefreshToken({
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     const { passwordHash: _, ...safeUser } = user;
-    return { user: safeUser, token, tokens: { accessToken: token, refreshToken } };
+    return { user: safeUser, token };
   }
 
   async login(data: LoginInput) {
@@ -102,20 +92,13 @@ export class MarketplaceAuthService {
       throw new ApiError(401, "Invalid email or password");
     }
 
-    const payload = {
+    const token = generateToken({
       id: user.id,
       email: user.email,
       role: user.role,
-    };
-    const token = generateToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-    await authRepository.createRefreshToken({
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     const { passwordHash: _, ...safeUser } = user;
-    return { user: safeUser, token, tokens: { accessToken: token, refreshToken } };
+    return { user: safeUser, token };
   }
 }

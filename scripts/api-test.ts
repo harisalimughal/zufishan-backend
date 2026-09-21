@@ -12,41 +12,14 @@ const rand = () => Math.random().toString(36).substring(2, 10);
   const buyerEmail = `buyer_${rand()}@example.com`;
   await request
     .post('/api/marketplace/register')
-    .send({
-      email: buyerEmail,
-      password: 'Pass123!',
-      fullName: 'Buyer Test',
-      role: 'BUYER',
-      contact: '03000000000',
-      address: 'Test address',
-    })
+    .send({ email: buyerEmail, password: 'Pass123!', fullName: 'Buyer Test', role: 'BUYER' })
     .expect(201);
-
-  // Ensure a product category exists
-  let category = await prisma.productCategory.findFirst();
-  if (!category) {
-    category = await prisma.productCategory.create({ data: { name: 'Default', slug: `default-${rand()}` } });
-  }
 
   // 2. Register vendor
   const vendorEmail = `vendor_${rand()}@example.com`;
   await request
     .post('/api/marketplace/register')
-    .send({
-      email: vendorEmail,
-      password: 'Pass123!',
-      fullName: 'Vendor Test',
-      role: 'VENDOR',
-      contact: '03000000001',
-      businessName: 'Vendor Test Business',
-      proof: 'https://example.com/proof.pdf',
-      location: 'Test market',
-      currentState: 'Punjab',
-      businessRegistrationNumber: 'REG-001',
-      vendorPicture: 'https://example.com/vendor.jpg',
-      businessPicture: 'https://example.com/business.jpg',
-      categories: [category.id],
-    })
+    .send({ email: vendorEmail, password: 'Pass123!', fullName: 'Vendor Test', role: 'VENDOR' })
     .expect(201);
 
   // 3. Login buyer
@@ -70,54 +43,46 @@ const rand = () => Math.random().toString(36).substring(2, 10);
     await prisma.vendorProfile.update({ where: { id: vendorProfile.id }, data: { approvalStatus: 'APPROVED' } });
   }
 
+  // Ensure a product category exists
+  let category = await prisma.productCategory.findFirst();
+  if (!category) {
+    category = await prisma.productCategory.create({ data: { name: 'Default', slug: 'default' } });
+  }
+
   // 6. Create a product (vendor must be approved)
   const productRes = await request
-    .post('/api/marketplace/vendor/products')
+    .post('/api/marketplace/products')
     .set('Authorization', `Bearer ${vendorToken}`)
-    .send({
-      name: 'Test Product',
-      description: 'Test product description',
-      price: 10.0,
-      stock: 100,
-      categoryId: category.id,
-    })
+    .send({ name: 'Test Product', price: 10.0, stock: 100, categoryId: category.id })
     .expect(201);
-  const productId = productRes.body.data.id;
+  const productId = productRes.body.id;
 
   // 7. Buyer adds product to cart
   await request
-    .post('/api/marketplace/cart/items')
+    .post('/api/marketplace/cart')
     .set('Authorization', `Bearer ${buyerToken}`)
     .send({ productId, quantity: 2 })
     .expect(201);
 
   // 8. Checkout
   const checkoutRes = await request
-    .post('/api/marketplace/orders')
+    .post('/api/marketplace/checkout')
     .set('Authorization', `Bearer ${buyerToken}`)
-    .send({ paymentMethod: 'COD', shippingAddress: 'Test address' })
+    .send({ paymentMethod: 'CASH' })
     .expect(201);
-  const orderId = checkoutRes.body.data.id;
+  const orderId = checkoutRes.body.id;
 
-  // 9. Vendor advances the order lifecycle
+  // 9. Rating (buyer rates the product)
   await request
-    .patch(`/api/marketplace/vendor/orders/${orderId}`)
+    .post('/api/marketplace/ratings')
     .set('Authorization', `Bearer ${buyerToken}`)
-    .send({ status: 'CONFIRMED' })
-    .expect(403);
-
-  for (const status of ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED']) {
-    await request
-      .patch(`/api/marketplace/vendor/orders/${orderId}`)
-      .set('Authorization', `Bearer ${vendorToken}`)
-      .send({ status })
-      .expect(200);
-  }
+    .send({ productId, rating: 5, comment: 'Great!' })
+    .expect(201);
 
   // 10. Return request (buyer requests return for first order item)
   const orderItem = await prisma.orderItem.findFirst({ where: { orderId } });
   await request
-    .post(`/api/marketplace/orders/${orderId}/returns`)
+    .post('/api/marketplace/returns')
     .set('Authorization', `Bearer ${buyerToken}`)
     .send({ orderItemId: orderItem?.id, reason: 'Defective' })
     .expect(201);

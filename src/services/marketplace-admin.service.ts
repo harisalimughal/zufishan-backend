@@ -13,12 +13,13 @@ export class MarketplaceAdminService {
     const pendingVendors = await prisma.vendorProfile.count({ where: { approvalStatus: "PENDING" } });
     const approvedVendors = await prisma.vendorProfile.count({ where: { approvalStatus: "APPROVED" } });
     const rejectedVendors = await prisma.vendorProfile.count({ where: { approvalStatus: "REJECTED" } });
+    const suspendedVendors = await prisma.vendorProfile.count({ where: { approvalStatus: "SUSPENDED" } });
     const activeProducts = await prisma.product.count({ where: { isActive: true } });
     const inactiveProducts = await prisma.product.count({ where: { isActive: false } });
     return {
       totalBuyers: buyers,
       totalVendors: vendors,
-      vendorsByStatus: { pending: pendingVendors, approved: approvedVendors, rejected: rejectedVendors },
+      vendorsByStatus: { pending: pendingVendors, approved: approvedVendors, rejected: rejectedVendors, suspended: suspendedVendors },
       totalProducts: products,
       productsByActive: { active: activeProducts, inactive: inactiveProducts },
     };

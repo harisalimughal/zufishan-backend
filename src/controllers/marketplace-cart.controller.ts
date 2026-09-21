@@ -21,18 +21,6 @@ export class MarketplaceCartController {
     res.status(201).json({ success: true, data: cart });
   });
 
-  updateItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const cartItemId = req.params.itemId as string;
-    const { quantity } = req.body;
-    const cart = await marketplaceCartService.updateItem(
-      userId,
-      cartItemId,
-      Number(quantity)
-    );
-    res.status(200).json({ success: true, data: cart });
-  });
-
   removeItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
     const cartItemId = req.params.itemId as string;

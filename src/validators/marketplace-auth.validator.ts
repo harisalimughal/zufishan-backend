@@ -18,9 +18,7 @@ export const registerSchema = z.discriminatedUnion("role", [
       .string()
       .min(2, "Full name is required"),
 
-    contact: z.string().min(5, "Contact is required"),
-
-    address: z.string().min(2, "Address is required"),
+    address: z.string().optional(),
 
     picture: z
       .string()
@@ -42,23 +40,23 @@ export const registerSchema = z.discriminatedUnion("role", [
       .string()
       .min(2, "Full name is required"),
 
-    contact: z.string().min(5, "Contact is required"),
+    contact: z.string().optional(),
 
-    businessName: z.string().min(2, "Business name is required"),
+    businessName: z.string().optional(),
 
-    proof: z.string().min(1, "Business proof is required"),
+    proof: z.string().optional(),
 
-    location: z.string().min(2, "Business address is required"),
+    location: z.string().optional(),
 
-    currentState: z.string().min(2, "Current state is required"),
+    currentState: z.string().optional(),
 
-    businessRegistrationNumber: z.string().min(2, "Business registration number is required"),
+    businessRegistrationNumber: z.string().optional(),
 
-    vendorPicture: z.string().min(1, "Vendor picture is required"),
+    vendorPicture: z.string().optional(),
 
-    businessPicture: z.string().min(1, "Business picture is required"),
+    businessPicture: z.string().optional(),
 
-    categories: z.array(z.string().cuid("Invalid category ID")).min(1, "Business category is required"),
+    categories: z.array(z.string()).optional(),
   }),
 ]);
 
@@ -73,8 +71,4 @@ export const loginSchema = z.object({
   password: z
     .string()
     .min(1, "Password is required"),
-});
-
-export const marketplaceRefreshTokenSchema = z.object({
-  refreshToken: z.string().min(1, "Refresh token is required"),
 });

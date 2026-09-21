@@ -1,12 +1,9 @@
 // src/repositories/marketplace-order.repository.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import prisma from "../config/prisma";
 
 export class MarketplaceOrderRepository {
-  async getBuyerProfileByUserId(userId: string) {
-    return prisma.buyerProfile.findUnique({ where: { userId } });
-  }
-
   /**
    * Retrieves an active cart with populated product details using buyerId.
    */
@@ -24,11 +21,9 @@ export class MarketplaceOrderRepository {
                 id: true,
                 name: true,
                 price: true,
-                discountPrice: true,
                 stock: true,
                 vendorId: true,
                 isActive: true,
-                vendor: { select: { approvalStatus: true } },
               },
             },
           },
@@ -40,74 +35,47 @@ export class MarketplaceOrderRepository {
   /**
    * Atomic Prisma transaction creating an Order, OrderItems, decrementing stock, and clearing Cart.
    */
-  async createOrderFromCart(
-    userId: string,
-    shippingAddress: string,
-    paymentMethod: string,
-    cartItems: any[],
-    totalAmount: number
-  ) {
+  async createOrderFromCart(userId: string, shippingAddress: string, paymentMethod: string) {
     const buyer = await prisma.buyerProfile.findUnique({ where: { userId } });
     if (!buyer) throw new Error("Buyer profile not found");
 
     return prisma.$transaction(async (tx: any) => {
-      const orderItems = [];
-      let recalculatedTotal = 0;
+      const cartRecord = await tx.cart.findUnique({ where: { buyerId: buyer.id }, select: { id: true } });
+      if (!cartRecord) throw new Error("Your shopping cart is empty");
+      // Updating the cart row acquires a database row lock until this transaction commits.
+      await tx.cart.update({ where: { id: cartRecord.id }, data: { updatedAt: new Date() } });
+      const cart = await tx.cart.findUnique({
+        where: { id: cartRecord.id },
+        include: { items: { include: { product: true } } },
+      });
+      if (!cart || cart.items.length === 0) throw new Error("Your shopping cart is empty");
 
-      for (const item of cartItems) {
-        const product = await tx.product.findFirst({
-          where: {
-            id: item.product.id,
-            isActive: true,
-            vendor: { approvalStatus: "APPROVED" },
-          },
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            discountPrice: true,
-            stock: true,
-          },
-        });
-
-        if (!product || product.stock < item.quantity) {
-          throw new Error(`Insufficient stock for '${item.product.name}'`);
-        }
-
+      const checkedItems: any[] = [];
+      let totalAmount = 0;
+      for (const item of cart.items) {
+        if (!item.product.isActive) throw new Error(`Product '${item.product.name}' is no longer active`);
         const updated = await tx.product.updateMany({
-          where: {
-            id: product.id,
-            isActive: true,
-            stock: { gte: item.quantity },
-          },
-          data: {
-            stock: { decrement: item.quantity },
-          },
+          where: { id: item.productId, isActive: true, stock: { gte: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
         });
-
-        if (updated.count !== 1) {
-          throw new Error(`Insufficient stock for '${item.product.name}'`);
-        }
-
-        const priceAtPurchase = product.discountPrice ?? product.price;
-        recalculatedTotal += Number(priceAtPurchase) * Number(item.quantity);
-        orderItems.push({
-          productId: product.id,
-          quantity: item.quantity,
-          priceAtPurchase,
-        });
+        if (updated.count !== 1) throw new Error(`Insufficient stock for '${item.product.name}'`);
+        checkedItems.push(item);
+        totalAmount += Number(item.product.price) * item.quantity;
       }
 
       const order = await tx.order.create({
         data: {
           buyerId: buyer.id,
-          totalAmount: recalculatedTotal || totalAmount,
+          totalAmount,
           status: "PENDING",
           paymentMethod,
-          paymentStatus: paymentMethod === "COD" ? "PENDING" : "PENDING",
           shippingAddress,
           items: {
-            create: orderItems,
+            create: checkedItems.map((item) => ({
+              productId: item.product.id,
+              quantity: item.quantity,
+              priceAtPurchase: item.product.price,
+            })),
           },
         },
         include: {
@@ -119,14 +87,10 @@ export class MarketplaceOrderRepository {
         },
       });
 
+      // 2. Format a user-facing confirmation code based on created order ID
       const formattedCode = `ORD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${order.id.slice(-6).toUpperCase()}`;
 
-      const cart = await tx.cart.findFirst({
-        where: { buyerId: buyer.id },
-      });
-      if (cart) {
-        await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
-      }
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
       return {
         ...order,
@@ -138,7 +102,7 @@ export class MarketplaceOrderRepository {
   /**
    * Retrieves order details by raw ID or formatted confirmation code (e.g. ORD-20260907-1C2D7U).
    */
-  async getOrderByConfirmationCodeOrId(identifier: string) {
+  async getOrderByConfirmationCodeOrId(identifier: string, access?: { userId: string; role: string }) {
     // Extract trailing 6 characters if user passed a formatted code like 'ORD-20260907-1C2D7U'
     let searchSuffix = identifier;
     if (identifier.startsWith("ORD-") && identifier.includes("-")) {
@@ -146,15 +110,36 @@ export class MarketplaceOrderRepository {
       searchSuffix = parts[parts.length - 1].toLowerCase();
     }
 
-    // Fetch all orders matching exact ID or ending with the extracted CUID suffix
+    const accessWhere: any = {};
+    if (access?.role === "BUYER") {
+      accessWhere.buyer = { userId: access.userId };
+    } else if (access?.role === "VENDOR") {
+      const vendor = await prisma.vendorProfile.findUnique({ where: { userId: access.userId }, select: { id: true } });
+      if (!vendor) return null;
+      accessWhere.items = { some: { product: { vendorId: vendor.id } } };
+    }
+
+    // Apply ownership before selecting the matching order so an identifier cannot bypass access checks.
     const orders = await (prisma as any).order.findMany({
       where: {
+        ...accessWhere,
         OR: [
           { id: identifier },
           { id: { endsWith: searchSuffix } },
         ],
       },
-      include: { items: { include: { product: true } } },
+      ...(access?.role === "VENDOR"
+        ? {
+            select: {
+              id: true,
+              status: true,
+              paymentMethod: true,
+              createdAt: true,
+              updatedAt: true,
+              items: { where: { product: { vendor: { userId: access.userId } } }, include: { product: true } },
+            },
+          }
+        : { include: { items: { include: { product: true } } } }),
     });
 
     if (!orders || orders.length === 0) return null;
@@ -199,9 +184,7 @@ export class MarketplaceOrderRepository {
    * Retrieves order items linked to products belonging to a Vendor.
    */
   async getOrdersByVendorUserId(userId: string) {
-    const vendor = await prisma.vendorProfile.findFirst({
-      where: { userId, approvalStatus: "APPROVED" },
-    });
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId } });
     if (!vendor) return [];
 
     return (prisma as any).orderItem.findMany({
@@ -230,29 +213,27 @@ export class MarketplaceOrderRepository {
   /**
    * Cancels a PENDING order and restores inventory stock.
    */
-  async cancelOrder(orderId: string, buyerUserId: string, cancellationReason?: string) {
+  async cancelOrder(orderId: string, buyerUserId: string) {
     const buyer = await prisma.buyerProfile.findUnique({ where: { userId: buyerUserId } });
     if (!buyer) throw new Error("Buyer profile not found");
 
-    const order = await (prisma as any).order.findFirst({
-      where: { id: orderId, buyerId: buyer.id },
-      include: { items: true },
-    });
-
-    if (!order) throw new Error("Order not found or unauthorized");
-    if (!["PENDING", "CONFIRMED"].includes(order.status)) {
-      throw new Error(`Order cannot be cancelled in status '${order.status}'`);
-    }
-
     return prisma.$transaction(async (tx: any) => {
-      const cancelledOrder = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: "CANCELLED",
-          cancellationReason,
-          cancelledAt: new Date(),
-        },
+      const order = await tx.order.findFirst({
+        where: { id: orderId, buyerId: buyer.id },
+        include: { items: true },
       });
+      if (!order) throw new Error("Order not found or unauthorized");
+      if (order.status === "PAID" || order.paymentStatus === "PAID") {
+        throw new Error("Paid orders require a gateway refund before cancellation");
+      }
+      if (!["PENDING", "CONFIRMED"].includes(order.status)) {
+        throw new Error(`Order cannot be cancelled in status '${order.status}'`);
+      }
+      const cancelled = await tx.order.updateMany({
+        where: { id: orderId, buyerId: buyer.id, status: { in: ["PENDING", "CONFIRMED"] } },
+        data: { status: "CANCELLED" },
+      });
+      if (cancelled.count !== 1) throw new Error("Order was already cancelled or changed state");
 
       for (const item of order.items) {
         await tx.product.update({
@@ -261,17 +242,28 @@ export class MarketplaceOrderRepository {
         });
       }
 
-      return cancelledOrder;
+      return tx.order.findUnique({ where: { id: orderId } });
     });
   }
 
   /**
    * Updates an order status.
    */
-  async updateOrderStatus(orderId: string, status: string) {
-    return (prisma as any).order.update({
-      where: { id: orderId },
+  async updateOrderStatus(orderId: string, status: string, vendorUserId: string) {
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId: vendorUserId }, select: { id: true } });
+    if (!vendor) throw new Error("Vendor profile not found");
+    const updated = await (prisma as any).orderItem.updateMany({
+      where: { orderId, product: { vendorId: vendor.id } },
       data: { status },
+    });
+    if (updated.count === 0) throw new Error("Order not found or unauthorized");
+    return (prisma as any).order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        status: true,
+        items: { where: { product: { vendorId: vendor.id } }, include: { product: true } },
+      },
     });
   }
 
@@ -284,7 +276,7 @@ export class MarketplaceOrderRepository {
 
     const [vendorOrderItems, productCount, lowStockProducts] = await Promise.all([
       (prisma as any).orderItem.findMany({
-        where: { product: { vendorId: vendor.id } },
+        where: { product: { vendorId: vendor.id }, order: { paymentStatus: "PAID", status: { not: "CANCELLED" } } },
         include: { product: { select: { price: true } } },
       }),
       prisma.product.count({ where: { vendorId: vendor.id } }),
@@ -302,7 +294,7 @@ export class MarketplaceOrderRepository {
 
     return {
       totalRevenue,
-      totalOrdersHandled: vendorOrderItems.length,
+      totalOrdersHandled: new Set(vendorOrderItems.map((item: any) => item.orderId)).size,
       totalProducts: productCount,
       lowStockWarnings: lowStockProducts,
     };
@@ -319,7 +311,7 @@ export class MarketplaceOrderRepository {
         prisma.buyerProfile.count(),
         prisma.product.count(),
         prisma.order.count(),
-        prisma.order.aggregate({ _sum: { totalAmount: true } }),
+        prisma.order.aggregate({ where: { paymentStatus: "PAID", status: { not: "CANCELLED" } }, _sum: { totalAmount: true } }),
       ]);
 
     return {
@@ -332,132 +324,16 @@ export class MarketplaceOrderRepository {
     };
   }
 
-  async getOrderById(id: string) {
-    return await (prisma as any).order.findUnique({
-      where: { id },
-      include: { items: { include: { product: true } } },
-    });
-  }
-
-  async getBuyerOrderById(userId: string, orderId: string) {
-    const buyer = await prisma.buyerProfile.findUnique({ where: { userId } });
-    if (!buyer) return null;
-
-    return await (prisma as any).order.findFirst({
-      where: { id: orderId, buyerId: buyer.id },
-      include: { items: { include: { product: true, returnRequests: true } } },
-    });
-  }
-
-  async getApprovedVendorByUserId(userId: string) {
-    return await prisma.vendorProfile.findFirst({
-      where: { userId, approvalStatus: "APPROVED" },
-      select: { id: true },
-    });
-  }
-
-  async vendorHasOrder(userId: string, orderId: string) {
-    const vendor = await prisma.vendorProfile.findUnique({ where: { userId } });
-    if (!vendor) return false;
-
-    const count = await (prisma as any).orderItem.count({
-      where: {
-        orderId,
-        product: { vendorId: vendor.id },
+  async getOrderById(id: string, vendorUserId?: string) {
+    if (!vendorUserId) return (prisma as any).order.findUnique({ where: { id }, include: { items: { include: { product: true } } } });
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId: vendorUserId }, select: { id: true } });
+    if (!vendor) return null;
+    return (prisma as any).order.findFirst({
+      where: { id, items: { some: { product: { vendorId: vendor.id } } } },
+      select: {
+        id: true, status: true, paymentMethod: true, createdAt: true, updatedAt: true,
+        items: { where: { product: { vendorId: vendor.id } }, include: { product: true } },
       },
-    });
-
-    return count > 0;
-  }
-
-  async createReturnRequest(buyerUserId: string, orderItemId: string, reason: string) {
-    const buyer = await prisma.buyerProfile.findUnique({ where: { userId: buyerUserId } });
-    if (!buyer) throw new Error("Buyer profile not found");
-
-    const existing = await (prisma as any).returnRequest.findFirst({
-      where: { buyerId: buyer.id, orderItemId },
-    });
-    if (existing) {
-      throw new Error("Return request already exists for this order item");
-    }
-
-    return await (prisma as any).returnRequest.create({
-      data: {
-        buyerId: buyer.id,
-        orderItemId,
-        reason,
-        status: "PENDING",
-      },
-      include: {
-        orderItem: { include: { product: true } },
-      },
-    });
-  }
-
-  async getReturnRequestsByOrderId(buyerUserId: string, orderId: string) {
-    const buyer = await prisma.buyerProfile.findUnique({ where: { userId: buyerUserId } });
-    if (!buyer) return [];
-
-    return await (prisma as any).returnRequest.findMany({
-      where: {
-        buyerId: buyer.id,
-        orderItem: { orderId },
-      },
-      include: {
-        orderItem: { include: { product: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async getReturnRequestById(returnRequestId: string) {
-    return await (prisma as any).returnRequest.findUnique({
-      where: { id: returnRequestId },
-      include: {
-        orderItem: { include: { product: true, order: true } },
-      },
-    });
-  }
-
-  async updateReturnStatus(returnRequestId: string, status: string) {
-    return await (prisma as any).returnRequest.update({
-      where: { id: returnRequestId },
-      data: { status },
-      include: {
-        orderItem: { include: { product: true } },
-      },
-    });
-  }
-
-  async getReturnRequestsByVendorUserId(userId: string) {
-    const vendor = await prisma.vendorProfile.findFirst({
-      where: { userId, approvalStatus: "APPROVED" },
-      select: { id: true },
-    });
-    if (!vendor) return [];
-
-    return await (prisma as any).returnRequest.findMany({
-      where: {
-        orderItem: {
-          product: {
-            vendorId: vendor.id,
-          },
-        },
-      },
-      include: {
-        orderItem: {
-          include: {
-            product: true,
-            order: true,
-          },
-        },
-        buyer: {
-          include: {
-            user: { select: { id: true, fullName: true, email: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
     });
   }
 }

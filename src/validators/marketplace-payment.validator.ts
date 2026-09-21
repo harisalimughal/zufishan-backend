@@ -1,19 +1,9 @@
 import { z } from "zod";
 
-export const paymentProviderSchema = z.enum(["CARD", "JAZZCASH", "EASYPAISA"]);
-
-export const createPaymentIntentSchema = z.object({
-  orderId: z.string().cuid("Invalid order ID"),
-  provider: paymentProviderSchema,
-  returnUrl: z.string().url().optional(),
-});
-
 export const paymentWebhookSchema = z.object({
-  paymentReference: z.string().min(1),
-  status: z.enum(["PAID", "FAILED", "REFUNDED"]),
-  providerTransactionId: z.string().min(1).optional(),
+  eventId: z.string().min(8).max(200),
+  orderId: z.string().cuid(),
+  status: z.enum(["PENDING", "PAID", "REFUNDED", "CANCELLED"]),
 });
 
-export const refundPaymentSchema = z.object({
-  reason: z.string().trim().min(3).max(500).optional(),
-});
+export const paymentIntentParamsSchema = z.object({ orderId: z.string().cuid() });

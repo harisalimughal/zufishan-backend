@@ -10,7 +10,7 @@ export class MarketplaceVendorRepository {
         id: vendorId,
       },
       include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
     });
@@ -19,7 +19,7 @@ export class MarketplaceVendorRepository {
   async findAllVendors() {
     return await prisma.vendorProfile.findMany({
       include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
       orderBy: {
@@ -34,7 +34,7 @@ export class MarketplaceVendorRepository {
         approvalStatus: VendorApprovalStatus.PENDING,
       },
       include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
       orderBy: {
@@ -62,7 +62,7 @@ export class MarketplaceVendorRepository {
       },
       data,
       include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
     });
@@ -79,7 +79,7 @@ export class MarketplaceVendorRepository {
         reviewedAt: new Date(),
       },
       include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
     });
@@ -96,24 +96,7 @@ export class MarketplaceVendorRepository {
         reviewedAt: new Date(),
       },
       include: {
-        user: true,
-        categories: true,
-      },
-    });
-  }
-
-  async suspendVendor(vendorId: string, reason?: string) {
-    return await prisma.vendorProfile.update({
-      where: {
-        id: vendorId,
-      },
-      data: {
-        approvalStatus: VendorApprovalStatus.SUSPENDED,
-        rejectionReason: reason,
-        reviewedAt: new Date(),
-      },
-      include: {
-        user: true,
+        user: { select: { id: true, email: true, fullName: true, avatarUrl: true, role: true, bio: true, createdAt: true, updatedAt: true } },
         categories: true,
       },
     });

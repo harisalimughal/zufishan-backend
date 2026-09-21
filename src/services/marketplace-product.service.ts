@@ -1,6 +1,7 @@
 import { MarketplaceProductRepository } from "../repositories/marketplace-product.repository";
 import { ApiError } from "../utils/apiError";
 import { VendorApprovalStatus } from "@prisma/client";
+import crypto from "crypto";
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -25,7 +26,7 @@ export class MarketplaceProductService {
     return `${name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)+/g, "")}-${Date.now().toString().slice(-4)}`;
+      .replace(/(^-|-$)+/g, "")}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
   }
 
   /**
@@ -50,6 +51,31 @@ export class MarketplaceProductService {
     return categories;
   }
 
+  async createCategory(data: { name: string; slug: string; description?: string; parentId?: string | null }) {
+    if (data.parentId && !(await repository.getCategoryById(data.parentId))) {
+      throw new ApiError(404, "Parent category not found");
+    }
+    return repository.saveCategory(data);
+  }
+
+  async updateCategory(id: string, data: { name?: string; slug?: string; description?: string; parentId?: string | null }) {
+    const category = await repository.getCategoryById(id);
+    if (!category) throw new ApiError(404, "Category not found");
+    if (data.parentId) {
+      if (data.parentId === id) throw new ApiError(400, "A category cannot be its own parent");
+      const visited = new Set<string>([id]);
+      let currentId: string | null = data.parentId;
+      while (currentId) {
+        if (visited.has(currentId)) throw new ApiError(400, "Category hierarchy cycle detected");
+        visited.add(currentId);
+        const parent = await repository.getCategoryById(currentId);
+        if (!parent) throw new ApiError(404, "Parent category not found");
+        currentId = parent.parentId;
+      }
+    }
+    return repository.saveCategory({ id, ...data });
+  }
+
   /**
    * Creates a new product for a vendor.
    * Enforces validation: The user must have a Vendor profile, and approvalStatus MUST be "APPROVED".
@@ -68,11 +94,6 @@ export class MarketplaceProductService {
     // Business Logic Check: Reject creation if vendor is not approved by Admin
     if (vendorProfile.approvalStatus !== VendorApprovalStatus.APPROVED) {
       throw new ApiError(403, "Vendor account is pending Admin approval");
-    }
-
-    const category = await repository.getCategoryById(data.categoryId);
-    if (!category) {
-      throw new ApiError(400, "Product category is not available");
     }
 
     const slug = this.generateSlug(data.name);
@@ -95,11 +116,8 @@ export class MarketplaceProductService {
   async updateProduct(userId: string, productId: string, data: UpdateProductDto): Promise<ProductResponse> {
     const vendorProfile = await repository.getVendorProfileByUserId(userId);
     if (!vendorProfile) throw new ApiError(404, "Vendor profile not found");
-    if (vendorProfile.approvalStatus !== VendorApprovalStatus.APPROVED) {
-      throw new ApiError(403, "Approved vendor access required");
-    }
 
-    const product = await repository.getProductById(productId);
+    const product = await repository.getVendorProductById(productId);
     if (!product) throw new ApiError(404, "Product not found");
 
     // Ownership Authorization Check
@@ -107,13 +125,10 @@ export class MarketplaceProductService {
       throw new ApiError(403, "You do not have permission to update this product");
     }
 
-    if (data.categoryId) {
-      const category = await repository.getCategoryById(data.categoryId);
-      if (!category) {
-        throw new ApiError(400, "Product category is not available");
-      }
+    const merged = { ...product, ...data };
+    if (merged.discountPrice !== undefined && merged.discountPrice !== null && Number(merged.discountPrice) > Number(merged.price)) {
+      throw new ApiError(400, "Discount price cannot exceed the product price");
     }
-
     return (await repository.updateProduct(productId, data)) as unknown as ProductResponse;
   }
 
@@ -127,11 +142,8 @@ export class MarketplaceProductService {
   async deleteProduct(userId: string, productId: string): Promise<ProductResponse> {
     const vendorProfile = await repository.getVendorProfileByUserId(userId);
     if (!vendorProfile) throw new ApiError(404, "Vendor profile not found");
-    if (vendorProfile.approvalStatus !== VendorApprovalStatus.APPROVED) {
-      throw new ApiError(403, "Approved vendor access required");
-    }
 
-    const product = await repository.getProductById(productId);
+    const product = await repository.getVendorProductById(productId);
     if (!product) throw new ApiError(404, "Product not found");
 
     // Ownership Authorization Check
@@ -150,11 +162,8 @@ export class MarketplaceProductService {
    */
   async getProductByIdOrSlug(identifier: string): Promise<ProductResponse | null> {
     const byId = await repository.getProductById(identifier);
-    const product = byId || (await repository.getProductBySlug(identifier));
-    if (!product || product.vendor.approvalStatus !== VendorApprovalStatus.APPROVED) {
-      return null;
-    }
-    return product as unknown as ProductResponse;
+    if (byId) return byId as unknown as ProductResponse;
+    return (await repository.getProductBySlug(identifier)) as unknown as ProductResponse;
   }
 
   /**
@@ -176,9 +185,6 @@ export class MarketplaceProductService {
   async listVendorProducts(userId: string): Promise<ProductResponse[]> {
     const vendorProfile = await repository.getVendorProfileByUserId(userId);
     if (!vendorProfile) throw new ApiError(404, "Vendor profile not found");
-    if (vendorProfile.approvalStatus !== VendorApprovalStatus.APPROVED) {
-      throw new ApiError(403, "Approved vendor access required");
-    }
     return (await repository.getProductsByVendor(vendorProfile.id)) as unknown as ProductResponse[];
   }
 }

@@ -16,7 +16,6 @@ export class MarketplaceAuthRepository {
     email: string;
     passwordHash: string;
     fullName: string;
-    contact?: string;
     address?: string;
     picture?: string;
   }) {
@@ -28,7 +27,6 @@ export class MarketplaceAuthRepository {
         role: Role.BUYER,
         buyerProfile: {
           create: {
-            contact: data.contact || "",
             address: data.address || "",
             picture: data.picture || null,
           },
@@ -50,7 +48,7 @@ export class MarketplaceAuthRepository {
     businessRegistrationNumber: string;
     vendorPicture: string;
     businessPicture: string;
-    categories: string[];
+    categories?: string[];
   }) {
     const categoryConnect =
       data.categories && data.categories.length > 0
@@ -73,8 +71,8 @@ export class MarketplaceAuthRepository {
             businessRegistrationNumber: data.businessRegistrationNumber || "",
             vendorPicture: data.vendorPicture || "",
             businessPicture: data.businessPicture || "",
+            // Set APPROVED directly for local development & automated testing
             approvalStatus: VendorApprovalStatus.PENDING,
-            ...(categoryConnect && { categories: categoryConnect }),
           },
         },
       },

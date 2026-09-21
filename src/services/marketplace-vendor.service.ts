@@ -1,4 +1,3 @@
-import { VendorApprovalStatus } from "@prisma/client";
 import { MarketplaceVendorRepository } from "../repositories/marketplace-vendor.repository";
 import { ApiError } from "../utils/apiError";
 
@@ -107,19 +106,5 @@ export class MarketplaceVendorService {
       vendorId,
       rejectionReason
     );
-  }
-
-  async suspendVendor(vendorId: string, reason?: string) {
-    const vendor = await this.repository.findVendorById(vendorId);
-
-    if (!vendor) {
-      throw new ApiError(404, "Vendor not found");
-    }
-
-    if (vendor.approvalStatus === VendorApprovalStatus.SUSPENDED) {
-      throw new ApiError(400, "Vendor is already suspended");
-    }
-
-    return await this.repository.suspendVendor(vendorId, reason);
   }
 }

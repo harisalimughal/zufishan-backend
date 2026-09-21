@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import prisma from "../config/prisma";
 import { ProductQueryFilters, PaginatedProductResult } from "../types/marketplace-product.types";
 
@@ -28,15 +29,7 @@ export class MarketplaceProductRepository {
    */
   async getAllCategories() {
     return prisma.productCategory.findMany({
-      where: { isActive: true },
       orderBy: { name: "asc" },
-    });
-  }
-
-  async getCategoryById(categoryId: string) {
-    return prisma.productCategory.findFirst({
-      where: { id: categoryId, isActive: true },
-      select: { id: true },
     });
   }
 
@@ -118,7 +111,7 @@ export class MarketplaceProductRepository {
    * @returns Detailed Product record with relational category, images, and vendor profiles.
    */
   async getProductById(id: string) {
-    return prisma.product.findFirst({
+    return prisma.product.findUnique({
       where: { id, isActive: true },
       include: {
         images: true,
@@ -134,6 +127,36 @@ export class MarketplaceProductRepository {
     });
   }
 
+  async getCategoryById(id: string) {
+    return prisma.productCategory.findUnique({ where: { id }, select: { id: true, parentId: true } });
+  }
+
+  async saveCategory(data: { id?: string; name?: string; slug?: string; description?: string; parentId?: string | null }) {
+    const { id, parentId, ...fields } = data;
+    if (id) {
+      return prisma.productCategory.update({ where: { id }, data: { ...fields, ...(parentId !== undefined ? { parent: parentId ? { connect: { id: parentId } } : { disconnect: true } } : {}) } });
+    }
+    if (!fields.name || !fields.slug) throw new Error("Category name and slug are required");
+    const createData: Prisma.ProductCategoryCreateInput = {
+      name: fields.name,
+      slug: fields.slug,
+      ...(fields.description !== undefined ? { description: fields.description } : {}),
+      ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
+    };
+    return prisma.productCategory.create({ data: createData });
+  }
+
+  async getVendorProductById(id: string) {
+    return prisma.product.findUnique({
+      where: { id },
+      include: {
+        images: true,
+        category: true,
+        vendor: { select: { id: true, businessName: true, approvalStatus: true } },
+      },
+    });
+  }
+
   /**
    * Retrieves a product by its unique URL-friendly slug string.
    *
@@ -141,12 +164,12 @@ export class MarketplaceProductRepository {
    * @returns Detailed Product record.
    */
   async getProductBySlug(slug: string) {
-    return prisma.product.findFirst({
+    return prisma.product.findUnique({
       where: { slug, isActive: true },
       include: {
         images: true,
         category: true,
-        vendor: { select: { id: true, businessName: true, approvalStatus: true } },
+        vendor: { select: { id: true, businessName: true } },
       },
     });
   }
@@ -164,7 +187,6 @@ export class MarketplaceProductRepository {
     // Construct Prisma dynamic WHERE query block
     const where: Prisma.ProductWhereInput = {
       isActive: filters.isActive !== undefined ? filters.isActive : true,
-      vendor: { approvalStatus: "APPROVED" },
       ...(filters.categoryId && { categoryId: filters.categoryId }),
       ...(filters.minPrice || filters.maxPrice
         ? {

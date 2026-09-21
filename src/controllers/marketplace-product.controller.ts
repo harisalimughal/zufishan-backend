@@ -16,6 +16,16 @@ export class MarketplaceProductController {
     res.status(200).json({ success: true, data: categories });
   });
 
+  createCategory = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const category = await marketplaceProductService.createCategory(req.body);
+    res.status(201).json({ success: true, data: category });
+  });
+
+  updateCategory = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const category = await marketplaceProductService.updateCategory(req.params.id as string, req.body);
+    res.status(200).json({ success: true, data: category });
+  });
+
   /**
    * HTTP POST /api/marketplace/products
    * Creates a new marketplace product. Requires authentication and vendor owner status.
@@ -27,17 +37,16 @@ export class MarketplaceProductController {
   });
 
   /**
-   * HTTP GET /api/marketplace/products/:productId
+   * HTTP GET /api/marketplace/products/:idOrSlug
    * Fetches a single product by its database ID or slug string.
    */
   getProduct = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const identifier = (req.params.productId || req.params.idOrSlug) as string;
+    const identifier = req.params.idOrSlug as string;
     const product = await marketplaceProductService.getProductByIdOrSlug(identifier);
     if (!product) {
-      res.status(404).json({ success: false, message: "Product not found" });
-      return;
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
-    res.status(200).json({ success: true, data: product });
+    return res.status(200).json({ success: true, data: product });
   });
 
   /**
@@ -45,13 +54,12 @@ export class MarketplaceProductController {
    * Public list endpoint returning paginated active products matching query filters.
    */
   listProducts = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const filters = req.query as any;
-    const result = await marketplaceProductService.listProducts(filters);
+    const result = await marketplaceProductService.listProducts(req.query as any);
     res.status(200).json({ success: true, data: result });
   });
 
   /**
-   * HTTP GET /api/marketplace/vendor/products
+   * HTTP GET /api/marketplace/products/vendor/me
    * Protected endpoint returning products owned by the authenticated vendor.
    */
   listVendorProducts = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -61,24 +69,24 @@ export class MarketplaceProductController {
   });
 
   /**
-   * HTTP PATCH /api/marketplace/vendor/products/:productId
+   * HTTP PATCH /api/marketplace/products/:id
    * Updates an existing product owned by the vendor.
    */
   updateProduct = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
-    const productId = req.params.productId as string;
+    const productId = req.params.id as string;
     const product = await marketplaceProductService.updateProduct(userId, productId, req.body);
     res.status(200).json({ success: true, data: product });
   });
 
   /**
-   * HTTP DELETE /api/marketplace/vendor/products/:productId
+   * HTTP DELETE /api/marketplace/products/:id
    * Removes a product owned by the vendor.
    */
   deleteProduct = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
-    const productId = req.params.productId as string;
+    const productId = req.params.id as string;
     await marketplaceProductService.deleteProduct(userId, productId);
-    res.status(200).json({ success: true, message: "Product deactivated successfully" });
+    res.status(200).json({ success: true, message: "Product deleted successfully" });
   });
 }

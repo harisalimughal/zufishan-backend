@@ -51,7 +51,7 @@ export class MarketplaceVendorController {
    * to review pending vendor applications.
    *
    * Route:
-   * GET /api/admin/marketplace/vendor-applications
+   * GET /api/marketplace/vendors/pending
    */
   getPendingVendors = asyncHandler(
     async (_req: Request, res: Response) => {
@@ -96,7 +96,7 @@ export class MarketplaceVendorController {
    * Only administrators can approve vendors.
    *
    * Route:
-   * POST /api/admin/marketplace/vendors/:vendorId/approval
+   * PATCH /api/marketplace/vendors/:vendorId/approve
    */
   approveVendor = asyncHandler(
     async (req: Request, res: Response) => {
@@ -119,7 +119,7 @@ export class MarketplaceVendorController {
    * A rejection reason is required in the request body.
    *
    * Route:
-   * POST /api/admin/marketplace/vendors/:vendorId/rejection
+   * PATCH /api/marketplace/vendors/:vendorId/reject
    */
   rejectVendor = asyncHandler(
     async (req: Request, res: Response) => {
@@ -134,21 +134,6 @@ export class MarketplaceVendorController {
       res.status(200).json({
         success: true,
         message: "Vendor rejected successfully",
-        data: vendor,
-      });
-    }
-  );
-
-  suspendVendor = asyncHandler(
-    async (req: Request, res: Response) => {
-      const vendorId = req.params.vendorId as string;
-      const { reason } = req.body;
-
-      const vendor = await service.suspendVendor(vendorId, reason);
-
-      res.status(200).json({
-        success: true,
-        message: "Vendor suspended successfully",
         data: vendor,
       });
     }

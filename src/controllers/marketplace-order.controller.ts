@@ -25,21 +25,14 @@ export class MarketplaceOrderController {
 
   getOrderByConfirmationCode = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const code = req.params.code as string;
-    const order = await marketplaceOrderService.getOrderByConfirmationCode(req.user!, code);
-    res.status(200).json({ success: true, data: order });
-  });
-
-  getOrderDetails = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const orderId = req.params.orderId as string;
-    const order = await marketplaceOrderService.getOrderDetails(req.user!, orderId);
+    const order = await marketplaceOrderService.getOrderByConfirmationCode(code, req.user!.id, req.user!.role);
     res.status(200).json({ success: true, data: order });
   });
 
   cancelOrder = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
     const orderId = req.params.orderId as string;
-    const { cancellationReason } = req.body;
-    const cancelledOrder = await marketplaceOrderService.cancelOrder(orderId, userId, cancellationReason);
+    const cancelledOrder = await marketplaceOrderService.cancelOrder(orderId, userId);
     res.status(200).json({ success: true, message: "Order cancelled and inventory restored", data: cancelledOrder });
   });
 
@@ -49,41 +42,11 @@ export class MarketplaceOrderController {
     res.status(200).json({ success: true, data: orders });
   });
 
-  getVendorReturns = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const returns = await marketplaceOrderService.getVendorReturns(userId);
-    res.status(200).json({ success: true, data: returns });
-  });
-
   updateOrderStatus = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
     const orderId = req.params.orderId as string;
     const { status } = req.body;
-    const updatedOrder = await marketplaceOrderService.updateOrderStatus(userId, orderId, status);
+    const updatedOrder = await marketplaceOrderService.updateOrderStatus(orderId, status, req.user!.id);
     res.status(200).json({ success: true, message: "Order status updated", data: updatedOrder });
-  });
-
-  requestReturn = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const orderId = req.params.orderId as string;
-    const { orderItemId, reason } = req.body;
-    const returnRequest = await marketplaceOrderService.requestReturn(userId, orderId, orderItemId, reason);
-    res.status(201).json({ success: true, message: "Return request submitted", data: returnRequest });
-  });
-
-  getOrderReturns = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const orderId = req.params.orderId as string;
-    const returns = await marketplaceOrderService.getOrderReturns(userId, orderId);
-    res.status(200).json({ success: true, data: returns });
-  });
-
-  updateReturnStatus = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const returnRequestId = req.params.returnRequestId as string;
-    const { status } = req.body;
-    const returnRequest = await marketplaceOrderService.updateReturnStatus(userId, returnRequestId, status);
-    res.status(200).json({ success: true, message: "Return status updated", data: returnRequest });
   });
 
   getVendorAnalytics = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

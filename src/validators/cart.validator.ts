@@ -4,14 +4,20 @@
 import { z } from "zod";
 
 export const addToCartSchema = z.object({
-  productId: z.string().cuid("Invalid product ID."),
-  quantity: z.coerce.number().int().positive("Quantity must be greater than 0."),
+  body: z.object({
+    productId: z.string().cuid(),
+    quantity: z.number().int().positive(),
+  }),
 });
 
 export const updateCartItemSchema = z.object({
-  quantity: z.coerce.number().int().positive("Quantity must be greater than 0."),
+  body: z.object({
+    quantity: z.number().int().positive(),
+  }),
 });
 
 export const cartItemIdSchema = z.object({
-  itemId: z.string().cuid("Invalid cart item ID."),
+  params: z.object({
+    id: z.string().cuid("Invalid cart item ID."),
+  }),
 });

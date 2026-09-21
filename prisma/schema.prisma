@@ -8,6 +8,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // ==========================================
@@ -406,7 +407,6 @@ model GroupMessage {
 model BuyerProfile {
   id      String  @id @default(cuid())
   userId  String  @unique
-  contact String? @default("")
   address String? @default("")
   picture String?
 
@@ -618,7 +618,7 @@ model ProductImage {
 // ---------------------------------------------------
 model Cart {
   id        String   @id @default(cuid())
-  buyerId   String
+  buyerId   String   @unique
   buyer     BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
   items     CartItem[]
   createdAt DateTime @default(now())
@@ -641,16 +641,12 @@ model Order {
   buyer        BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
   totalAmount  Decimal   @db.Decimal(10,2)
   status       String    @default("PENDING")
-  paymentMethod String?
   paymentStatus String   @default("PENDING")
-  paymentProvider String?
   paymentReference String? @unique
-  paidAt       DateTime?
-  refundedAt   DateTime?
+  paymentMethod String?
   shippingAddress String?
-  cancellationReason String?
-  cancelledAt   DateTime?
   items        OrderItem[]
+  paymentEvents PaymentWebhookEvent[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -663,6 +659,7 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity  Int @default(1)
   priceAtPurchase Decimal @db.Decimal(10,2)
+  status    String @default("PENDING")
 
   // Opposite side relation for returns
   returnRequests ReturnRequest[]
@@ -678,6 +675,8 @@ model Rating {
   comment   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([buyerId, productId])
 }
 
 model ReturnRequest {
@@ -691,4 +690,18 @@ model ReturnRequest {
   trackingId    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@unique([buyerId, orderItemId])
+}
+
+model PaymentWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      String
+  signature   String
+  receivedAt  DateTime @default(now())
+
+  @@index([orderId])
 }

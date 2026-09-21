@@ -12,12 +12,13 @@ interface TokenPayload {
   id: string;
   email: string;
   role: string;
+  type?: "ACCESS" | "REFRESH";
 }
 
 // Generate the access token used for authenticated requests
 export const generateToken = (payload: TokenPayload): string => {
   return jwt.sign(
-    payload,
+    { ...payload, type: "ACCESS" },
     JWT_SECRET,
     {
       expiresIn: "15m",
@@ -30,6 +31,7 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
   return jwt.sign(
     {
       ...payload,
+      type: "REFRESH",
 
       // Unique identifier for the refresh token
       jti: `${Date.now()}_${Math.random()}`,
@@ -47,7 +49,7 @@ export const generateTokenWithExpiry = (
   expiresIn: string
 ): string => {
   return jwt.sign(
-    payload,
+    { ...payload, type: "ACCESS" },
     JWT_SECRET,
     {
       expiresIn,
@@ -58,7 +60,8 @@ export const generateTokenWithExpiry = (
 // Verify the access token
 export const verifyToken = (token: string): TokenPayload | null => {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return decoded.type === "ACCESS" ? decoded : null;
   } catch {
     // Return null if the token is invalid or expired
     return null;
@@ -70,9 +73,12 @@ export const verifyRefreshToken = (
   token: string
 ): TokenPayload | null => {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return decoded.type === "REFRESH" ? decoded : null;
   } catch {
     // Return null if the token is invalid or expired
     return null;
   }
 };
+
+export const generateAccessToken = generateToken;

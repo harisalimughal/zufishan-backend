@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { MarketplaceAuthService } from "../services/marketplace-auth.service";
 import { asyncHandler } from "../utils/asyncHandler";
-import { authService } from "../services/auth.service";
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -30,12 +29,6 @@ export class MarketplaceAuthController {
       message: "Login successful",
       data: result,
     });
-  });
-
-  refreshToken = asyncHandler(async (req: Request, res: Response) => {
-    const payload = req.body.body || req.body;
-    const result = await authService.refreshToken(payload.refreshToken);
-    res.status(200).json({ success: true, message: "Token refreshed successfully", data: result });
   });
 
   getMe = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
