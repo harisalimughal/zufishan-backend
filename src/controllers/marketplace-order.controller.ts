@@ -59,4 +59,18 @@ export class MarketplaceOrderController {
     const overview = await marketplaceOrderService.getAdminOverview();
     res.status(200).json({ success: true, data: overview });
   });
+
+  getOrderDetails = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const order = await marketplaceOrderService.getOrderDetails(req.params.orderId as string, req.user!.id);
+    res.status(200).json({ success: true, data: order });
+  });
+
+  getVendorReturns = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    res.status(200).json({ success: true, data: await marketplaceOrderService.getVendorReturns(req.user!.id) });
+  });
+
+  updateReturnStatus = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const result = await marketplaceOrderService.updateReturnStatus(req.params.returnRequestId as string, req.body.status, req.user!.id);
+    res.status(200).json({ success: true, data: result });
+  });
 }

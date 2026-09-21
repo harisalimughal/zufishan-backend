@@ -107,4 +107,11 @@ export class MarketplaceVendorService {
       rejectionReason
     );
   }
+
+  async suspendVendor(vendorId: string, reason: string) {
+    const vendor = await this.repository.findVendorById(vendorId);
+    if (!vendor) throw new ApiError(404, "Vendor not found");
+    if (vendor.approvalStatus === "SUSPENDED") throw new ApiError(400, "Vendor is already suspended");
+    return this.repository.suspendVendor(vendorId, reason);
+  }
 }

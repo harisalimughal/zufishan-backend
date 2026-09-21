@@ -66,3 +66,7 @@ export const rejectVendorSchema = z.object({
     .string()
     .min(3, "Rejection reason must be at least 3 characters"),
 });
+
+export const suspendVendorSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});

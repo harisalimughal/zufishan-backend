@@ -15,6 +15,10 @@ export const canTransitionPayment = (current: string, next: string): boolean =>
   allowedTransitions[current]?.includes(next) ?? false;
 
 export class MarketplacePaymentService {
+  async createIntent(userId: string, orderId: string, _provider?: string, _returnUrl?: string) {
+    return this.createPaymentIntent(orderId, userId);
+  }
+
   async createPaymentIntent(orderId: string, userId: string) {
     const order = await prisma.order.findFirst({
       where: { id: orderId, buyer: { userId } },
@@ -72,6 +76,17 @@ export class MarketplacePaymentService {
       });
       if (updated.count !== 1) throw new ApiError(409, "Payment state changed concurrently; retry the webhook");
       return { duplicate: false, orderId: payload.orderId, paymentStatus: payload.status };
+    });
+  }
+
+  async refund(_adminUserId: string, orderId: string, _reason?: string) {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, paymentStatus: true, status: true } });
+      if (!order) throw new ApiError(404, "Order not found");
+      if (order.paymentStatus !== "PAID") throw new ApiError(409, "Only paid orders can be refunded");
+      const updated = await tx.order.updateMany({ where: { id: orderId, paymentStatus: "PAID" }, data: { paymentStatus: "REFUNDED" } });
+      if (updated.count !== 1) throw new ApiError(409, "Payment state changed; retry the refund");
+      return { id: orderId, paymentStatus: "REFUNDED" };
     });
   }
 }

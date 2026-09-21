@@ -138,4 +138,9 @@ export class MarketplaceVendorController {
       });
     }
   );
+
+  suspendVendor = asyncHandler(async (req: Request, res: Response) => {
+    const vendor = await service.suspendVendor(req.params.vendorId as string, req.body.reason);
+    res.status(200).json({ success: true, message: "Vendor suspended successfully", data: vendor });
+  });
 }

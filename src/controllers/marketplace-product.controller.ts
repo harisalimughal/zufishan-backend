@@ -22,7 +22,7 @@ export class MarketplaceProductController {
   });
 
   updateCategory = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const category = await marketplaceProductService.updateCategory(req.params.id as string, req.body);
+    const category = await marketplaceProductService.updateCategory((req.params.id ?? req.params.categoryId) as string, req.body);
     res.status(200).json({ success: true, data: category });
   });
 
@@ -74,7 +74,7 @@ export class MarketplaceProductController {
    */
   updateProduct = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
-    const productId = req.params.id as string;
+    const productId = (req.params.id ?? req.params.productId) as string;
     const product = await marketplaceProductService.updateProduct(userId, productId, req.body);
     res.status(200).json({ success: true, data: product });
   });
@@ -85,7 +85,7 @@ export class MarketplaceProductController {
    */
   deleteProduct = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!.id;
-    const productId = req.params.id as string;
+    const productId = (req.params.id ?? req.params.productId) as string;
     await marketplaceProductService.deleteProduct(userId, productId);
     res.status(200).json({ success: true, message: "Product deleted successfully" });
   });

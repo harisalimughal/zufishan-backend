@@ -13,9 +13,8 @@ export class MarketplacePaymentController {
 
   webhook = asyncHandler(async (req: any, res: Response) => {
     const payload = paymentWebhookSchema.parse(req.body);
-    const provider = String(req.params.provider).toUpperCase();
-    const order = await service.handleWebhook(provider, payload, req.headers["x-payment-signature"] as string | undefined);
-    res.status(200).json({ success: true, message: "Payment webhook processed", data: { orderId: order.id, paymentStatus: order.paymentStatus } });
+    const order = await service.handleWebhook(payload, req.headers["x-payment-signature"] as string | undefined ?? "");
+    res.status(200).json({ success: true, message: "Payment webhook processed", data: { orderId: order.orderId, paymentStatus: order.paymentStatus } });
   });
 
   refund = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

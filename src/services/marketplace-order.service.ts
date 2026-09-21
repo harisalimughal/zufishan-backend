@@ -2,6 +2,7 @@
 
 import { marketplaceOrderRepository } from "../repositories/marketplace-order.repository";
 import { ApiError } from "../utils/apiError";
+import prisma from "../config/prisma";
 
 export class MarketplaceOrderService {
   /**
@@ -53,6 +54,26 @@ export class MarketplaceOrderService {
 
   async getAdminOverview() {
     return await marketplaceOrderRepository.getAdminMarketplaceOverview();
+  }
+
+  async getOrderDetails(orderId: string, userId: string) {
+    const order = await marketplaceOrderRepository.getOrderById(orderId, userId);
+    if (!order) throw new ApiError(404, "Order not found");
+    return order;
+  }
+
+  async getVendorReturns(userId: string) {
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!vendor) throw new ApiError(404, "Vendor profile not found");
+    return prisma.returnRequest.findMany({ where: { orderItem: { product: { vendorId: vendor.id } } }, include: { orderItem: { include: { product: true } } }, orderBy: { createdAt: "desc" } });
+  }
+
+  async updateReturnStatus(returnRequestId: string, status: string, userId: string) {
+    const vendor = await prisma.vendorProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!vendor) throw new ApiError(404, "Vendor profile not found");
+    const updated = await prisma.returnRequest.updateMany({ where: { id: returnRequestId, orderItem: { product: { vendorId: vendor.id } } }, data: { status } });
+    if (updated.count !== 1) throw new ApiError(404, "Return request not found");
+    return prisma.returnRequest.findUnique({ where: { id: returnRequestId } });
   }
 }
 

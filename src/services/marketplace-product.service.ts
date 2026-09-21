@@ -58,7 +58,7 @@ export class MarketplaceProductService {
     return repository.saveCategory(data);
   }
 
-  async updateCategory(id: string, data: { name?: string; slug?: string; description?: string; parentId?: string | null }) {
+  async updateCategory(id: string, data: { name?: string; slug?: string; description?: string; parentId?: string | null; isActive?: boolean }) {
     const category = await repository.getCategoryById(id);
     if (!category) throw new ApiError(404, "Category not found");
     if (data.parentId) {

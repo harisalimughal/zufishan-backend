@@ -7,3 +7,4 @@ export const paymentWebhookSchema = z.object({
 });
 
 export const paymentIntentParamsSchema = z.object({ orderId: z.string().cuid() });
+export const refundPaymentSchema = z.object({ reason: z.string().trim().min(3).optional() });
