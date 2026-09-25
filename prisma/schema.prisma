@@ -8,6 +8,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // ==========================================
@@ -18,6 +19,8 @@ enum Role {
   STUDENT
   TUTOR
   ADMIN
+  BUYER
+  VENDOR
 }
 
 enum AttendanceStatus {
@@ -64,20 +67,30 @@ enum ActivityType {
   PASSWORD_RESET_COMPLETE
 }
 
+enum VendorApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+
 // ==========================================
 // 1. USER & AUTH MODULE
 // ==========================================
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  fullName     String
-  avatarUrl    String?
-  role         Role     @default(STUDENT)
-  bio          String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  fullName      String
+  avatarUrl     String?
+  role          Role           @default(STUDENT)
+  bio           String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  buyerProfile  BuyerProfile?
+  vendorProfile VendorProfile?
 
   preferences      UserPreferences?
   refreshTokens    RefreshToken[]
@@ -130,12 +143,12 @@ model Course {
   title          String
   detailSlug     String   @unique // e.g. "database-101", "python-programming"
   description    String
-  instructorName String   // e.g. "Prof. Lucas (AI)"
-  category       String   // e.g. "Computer Science", "AI Engineering"
+  instructorName String // e.g. "Prof. Lucas (AI)"
+  category       String // e.g. "Computer Science", "AI Engineering"
   level          String   @default("Beginner")
-  bannerUrl      String?  // e.g. "/course-database.png"
-  icon           String?  // e.g. "🗄️", "🌐", "</>"
-  iconBg         String?  // e.g. "bg-purple-900/30"
+  bannerUrl      String? // e.g. "/course-database.png"
+  icon           String? // e.g. "🗄️", "🌐", "</>"
+  iconBg         String? // e.g. "bg-purple-900/30"
   rating         Float    @default(4.8)
   totalStudents  Int      @default(0)
   liveClassToday Boolean  @default(false)
@@ -187,7 +200,7 @@ model CourseResource {
   id         String   @id @default(cuid())
   courseId   String
   course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title      String   // e.g. "Database Normalization.pdf"
+  title      String // e.g. "Database Normalization.pdf"
   fileUrl    String
   fileType   String   @default("pdf")
   uploadedAt DateTime @default(now())
@@ -225,8 +238,8 @@ model AttendanceLog {
   course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   date      DateTime
   status    AttendanceStatus @default(PRESENT)
-  timeSlot  String?          // e.g. "09:00 AM - 10:30 AM"
-  topic     String?          // e.g. "SQL Joins & Indexing"
+  timeSlot  String? // e.g. "09:00 AM - 10:30 AM"
+  topic     String? // e.g. "SQL Joins & Indexing"
   createdAt DateTime         @default(now())
 
   @@index([userId])
@@ -293,9 +306,9 @@ model Submission {
 
 model Achievement {
   id          String   @id @default(cuid())
-  title       String   // e.g. "Perfect Attendance"
+  title       String // e.g. "Perfect Attendance"
   description String
-  icon        String   // e.g. "Award", "Flame", "Star"
+  icon        String // e.g. "Award", "Flame", "Star"
   category    String   @default("General")
   xpPoints    Int      @default(50)
   createdAt   DateTime @default(now())
@@ -323,7 +336,7 @@ model CalendarEvent {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String?
   course    Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  title     String    // e.g. "Database 101"
+  title     String // e.g. "Database 101"
   startTime DateTime
   endTime   DateTime
   type      EventType @default(CLASS)
@@ -339,8 +352,8 @@ model ActivityLog {
   id        String       @id @default(cuid())
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String       // e.g. 'You completed "SQL Basics Quiz"'
-  subtitle  String?      // e.g. "Database Normalization.pdf"
+  title     String // e.g. 'You completed "SQL Basics Quiz"'
+  subtitle  String? // e.g. "Database Normalization.pdf"
   type      ActivityType @default(LESSON_COMPLETE)
   createdAt DateTime     @default(now())
 
@@ -385,4 +398,310 @@ model GroupMessage {
   createdAt DateTime @default(now())
 
   @@map("group_messages")
+}
+
+// ==========================================
+// 7. BUYER PROFILE MODEL
+// ==========================================
+
+model BuyerProfile {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  address String? @default("")
+  picture String?
+
+  // Added opposite side relations for marketplace models
+  carts          Cart[]
+  orders         Order[]
+  ratings        Rating[]
+  returnRequests ReturnRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// 8. VENDOR PROFILE MODEL
+// ==========================================
+
+model VendorProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Business Information
+  contact                    String
+  businessName               String
+  proof                      String
+  location                   String
+  currentState               String
+  businessRegistrationNumber String
+
+  // Images
+  vendorPicture   String
+  businessPicture String
+
+  // Approval Workflow
+  approvalStatus  VendorApprovalStatus @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+
+  // Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  //product sold by vendor
+  products Product[]
+
+  // Categories the vendor belongs to (many-to-many)
+  categories ProductCategory[] @relation("VendorCategories")
+}
+
+// ==========================================
+// 9. PRODUCT CATEGORY MODEL
+// ==========================================
+// Categories are managed dynamically by the admin.
+// Supports unlimited categories and subcategories.
+
+model ProductCategory {
+  /// Primary Key
+  id String @id @default(cuid())
+
+  /// Category Information
+  name        String
+  slug        String @unique
+  description String?
+  icon   String?
+
+  /// Category Status
+  isActive Boolean @default(true)
+
+  /// Parent Category (Optional)
+  parentId String?
+
+  parent ProductCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children ProductCategory[] @relation("CategoryHierarchy")
+
+  /// Products inside this category
+  products Product[]
+  vendors VendorProfile[] @relation("VendorCategories")
+  /// Audit Fields
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Indexes
+  @@index([parentId])
+  @@index([slug])
+
+  @@map("product_categories")
+}
+
+/// ==========================================
+// 10. PRODUCT MODEL
+// ==========================================
+// A product belongs to one vendor and one category.
+// Supports future marketplace expansion.
+
+model Product {
+
+  /// Primary Key
+  id String @id @default(cuid())
+
+  // ===================================================
+  // Relationships
+  // ===================================================
+
+  /// Vendor
+  vendorId String
+
+  vendor VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  /// Category
+  categoryId String
+
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  // ===================================================
+  // Product Information
+  // ===================================================
+
+  name String
+
+  slug String @unique
+
+  shortDescription String?
+
+  description String
+
+  // ===================================================
+  // Pricing
+  // ===================================================
+
+  price Decimal @db.Decimal(10,2)
+
+  // Opposite side relations for marketplace models
+  cartItems CartItem[]
+  orderItems OrderItem[]
+  ratings Rating[]
+
+  discountPrice Decimal? @db.Decimal(10,2)
+
+  // ===================================================
+  // Inventory
+  // ===================================================
+
+  stock Int
+
+  sku String?
+
+  // ===================================================
+  // Media
+  // ===================================================
+
+  images ProductImage[]
+
+  // ===================================================
+  // Status
+  // ===================================================
+
+  isFeatured Boolean @default(false)
+
+  isActive Boolean @default(true)
+
+  // ===================================================
+  // Audit
+  // ===================================================
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  // ===================================================
+  // Indexes
+  // ===================================================
+
+  @@index([vendorId])
+
+  @@index([categoryId])
+
+  @@index([name])
+
+  @@index([slug])
+
+  @@index([isActive])
+
+  @@map("products")
+}
+
+// ---------------------------------------------------
+// ProductImage model – separate from Product
+// ---------------------------------------------------
+model ProductImage {
+  id          String   @id @default(cuid())
+  productId   String
+  imageUrl    String
+  isPrimary   Boolean  @default(false)
+  displayOrder Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ---------------------------------------------------
+// Marketplace Cart & Order models (Phase 5)
+// ---------------------------------------------------
+model Cart {
+  id        String   @id @default(cuid())
+  buyerId   String   @unique
+  buyer     BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int @default(1)
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  buyerId      String
+  buyer        BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  totalAmount  Decimal   @db.Decimal(10,2)
+  status       String    @default("PENDING")
+  paymentStatus String   @default("PENDING")
+  paymentReference String? @unique
+  paymentMethod String?
+  shippingAddress String?
+  items        OrderItem[]
+  paymentEvents PaymentWebhookEvent[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int @default(1)
+  priceAtPurchase Decimal @db.Decimal(10,2)
+  status    String @default("PENDING")
+
+  // Opposite side relation for returns
+  returnRequests ReturnRequest[]
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  rating    Int @default(5) // 1‑5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buyerId, productId])
+}
+
+model ReturnRequest {
+  id            String   @id @default(cuid())
+  orderItemId   String
+  orderItem     OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  buyerId       String
+  buyer         BuyerProfile @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  reason        String
+  status        String @default("PENDING")
+  trackingId    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([buyerId, orderItemId])
+}
+
+model PaymentWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      String
+  signature   String
+  receivedAt  DateTime @default(now())
+
+  @@index([orderId])
 }

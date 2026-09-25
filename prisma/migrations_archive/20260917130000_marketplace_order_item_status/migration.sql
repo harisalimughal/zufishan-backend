@@ -1,0 +1,6 @@
+DO $$
+BEGIN
+  IF to_regclass('"OrderItem"') IS NOT NULL THEN
+    ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';
+  END IF;
+END $$;
