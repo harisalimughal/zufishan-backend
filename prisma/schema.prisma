@@ -875,6 +875,7 @@ model AzkarItem {
   updatedAt       DateTime @updatedAt
 
   @@index([categoryId])
+  @@index([categoryId, displayOrder]) // created in 20260907180000_azkar_items_category_order_idx
   @@index([isActive])
   @@map("azkar_items")
 }

@@ -20,6 +20,9 @@ import { env } from "./config/env";
 
 export const app: Express = express();
 
+// Behind one reverse proxy (nginx) so req.ip, and therefore rate limiting, sees the real client IP
+app.set("trust proxy", 1);
+
 // ==========================================
 // Security middleware
 // ==========================================
