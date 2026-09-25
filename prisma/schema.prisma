@@ -106,6 +106,11 @@ model User {
   receivedMessages Message[]         @relation("ReceivedMessages")
   groupMessages    GroupMessage[]
 
+  // ── Utilities Module relations ──
+  zakatCalculations        ZakatCalculation[]
+  tasbihSessions           TasbihSession[]
+  aiAssistantConversations AiAssistantConversation[]
+
   @@map("users")
 }
 
@@ -704,4 +709,332 @@ model PaymentWebhookEvent {
   receivedAt  DateTime @default(now())
 
   @@index([orderId])
+}
+
+// ==========================================
+// 8. DAILY UTILITIES MODULE
+// ==========================================
+
+enum AzkarCategory {
+  MORNING
+  EVENING
+  SLEEP
+  PRAYER
+  GENERAL
+}
+
+enum AiAssistantRole {
+  USER
+  ASSISTANT
+}
+
+enum RagSourceType {
+  HELP_DOC
+  COURSE_METADATA
+  MARKETPLACE_METADATA
+  FAQ
+}
+
+// ── 7a. Prayer Time Cache ──────────────────
+// Caches external API responses by location + date + method + asrMethod.
+// Avoids repeated external calls for the same coordinates on the same day.
+model PrayerTimeCache {
+  id String @id @default(cuid())
+
+  // Location stored as Decimal for full precision (avoid float rounding)
+  latitude  Decimal @db.Decimal(9, 6)
+  longitude Decimal @db.Decimal(9, 6)
+
+  date      DateTime @db.Date   // date-only (no time component)
+  method    String   @default("MWL")  // calculation method: MWL, ISNA, Egypt, Karachi …
+  asrMethod Int      @default(0)      // 0 = Standard/Shafi'i, 1 = Hanafi
+
+  // Prayer times stored as HH:MM strings (timezone-agnostic)
+  fajr    String
+  sunrise String
+  dhuhr   String
+  asr     String
+  maghrib String
+  isha    String
+
+  // Optional extras some methods provide
+  midnight  String?
+  lastThird String?
+
+  expiresAt DateTime // cache TTL — typically end of the cached day
+  createdAt DateTime @default(now())
+
+  // One cache entry per (location bucket + date + method + asrMethod)
+  @@unique([latitude, longitude, date, method, asrMethod])
+  @@index([expiresAt]) // for cache-expiry cleanup jobs
+  @@map("prayer_time_cache")
+}
+
+// ── 7b. Zakat Nisab Rates ─────────────────
+// Stores periodic gold/silver price snapshots used to determine nisab.
+// Admin-managed; one record per currency per effective date.
+model ZakatNisabRate {
+  id String @id @default(cuid())
+
+  // Prices per gram in the given currency
+  goldPricePerGram   Decimal @db.Decimal(18, 6)
+  silverPricePerGram Decimal @db.Decimal(18, 6)
+
+  currency      String   @default("USD") @db.Char(3) // ISO 4217
+  effectiveDate DateTime @db.Date
+
+  // Nisab thresholds in grams (Islamic standard values)
+  nisabGoldGrams   Decimal @default(85) @db.Decimal(8, 3)
+  nisabSilverGrams Decimal @default(595) @db.Decimal(8, 3)
+
+  // Computed nisab value = nisabGoldGrams * goldPricePerGram
+  nisabValueGold   Decimal @db.Decimal(18, 4)
+  nisabValueSilver Decimal @db.Decimal(18, 4)
+
+  source    String? // e.g. "goldapi.io", "manual"
+  createdAt DateTime @default(now())
+
+  calculations ZakatCalculation[]
+
+  @@unique([currency, effectiveDate])
+  @@index([effectiveDate])
+  @@map("zakat_nisab_rates")
+}
+
+// ── 7c. Zakat Calculations ────────────────
+// Persists a user's zakat calculation result for record-keeping.
+// userId is optional to allow guest/unauthenticated calculations.
+model ZakatCalculation {
+  id     String  @id @default(cuid())
+  userId String? // nullable — guests can calculate without an account
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // User-provided asset values
+  goldGrams      Decimal @default(0) @db.Decimal(12, 4)
+  silverGrams    Decimal @default(0) @db.Decimal(12, 4)
+  cashSavings    Decimal @default(0) @db.Decimal(18, 4)
+  investments    Decimal @default(0) @db.Decimal(18, 4)
+  businessAssets Decimal @default(0) @db.Decimal(18, 4)
+  receivables    Decimal @default(0) @db.Decimal(18, 4)
+
+  // Computed results
+  totalZakatableAssets Decimal @db.Decimal(18, 4)
+  nisabThreshold       Decimal @db.Decimal(18, 4)
+  zakatDue             Decimal @db.Decimal(18, 4)
+  zakatableAboveNisab  Boolean // false if assets < nisab
+
+  currency    String          @default("USD") @db.Char(3)
+  nisabRateId String? // snapshot of rates used
+  nisabRate   ZakatNisabRate? @relation(fields: [nisabRateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  // Composite: current-user history ordered by newest first
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("zakat_calculations")
+}
+
+// ── 7d. Azkar Categories ─────────────────
+// Admin-managed; defines the high-level groupings for azkar items.
+model AzkarCategoryRecord {
+  id           String   @id @default(cuid())
+  slug         String   @unique // e.g. "morning", "evening"
+  name         String // English label
+  arabicName   String // e.g. "أذكار الصباح"
+  description  String?
+  iconName     String? // Lucide icon name for UI
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items AzkarItem[]
+
+  @@index([isActive])
+  @@map("azkar_categories")
+}
+
+// ── 7e. Azkar Items ───────────────────────
+// Individual dhikr / supplication entries.
+model AzkarItem {
+  id         String              @id @default(cuid())
+  categoryId String
+  category   AzkarCategoryRecord @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  arabic          String // Full Arabic text
+  transliteration String? // Romanised pronunciation
+  translation     String // English meaning
+  repetitions     Int      @default(1) // How many times to recite
+  reference       String? // Source (e.g. "Sahih Bukhari 6311")
+  audioUrl        String? // Optional hosted audio file URL
+  displayOrder    Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("azkar_items")
+}
+
+// ── 7f. Tasbih Sessions ───────────────────
+// Persists a user's completed dhikr counter sessions.
+model TasbihSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phrase       String // e.g. "SubhanAllah" (transliteration or Arabic)
+  arabicPhrase String? // Arabic text if different from phrase
+  count        Int // Actual count achieved in session
+  target       Int     @default(33) // Target count (33, 99, etc.)
+  isCompleted  Boolean @default(false) // count >= target
+
+  sessionDate DateTime @default(now()) @db.Date // which day the session belongs to
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, sessionDate]) // efficient per-user daily history lookup
+  @@map("tasbih_sessions")
+}
+
+// ── 7g. AI Assistant Conversations ───────
+// Groups a series of messages into a single conversation thread.
+model AiAssistantConversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String? // Auto-generated from first message or user-set
+  isActive  Boolean  @default(true)
+
+  // Admin flagging — moderator can mark a conversation for human review
+  isFlagged  Boolean   @default(false)
+  flaggedAt  DateTime?
+  flagReason String?   // e.g. "Inappropriate content", "Policy violation"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs AiAssistantLog[]
+
+  @@index([userId])
+  @@index([userId, isActive])              // filter active conversations per user
+  @@index([userId, updatedAt])             // conversation ordering newest first
+  @@index([userId, isActive, updatedAt])   // active conversations newest first
+  @@index([isFlagged])                     // admin flagged conversations
+  @@map("ai_assistant_conversations")
+}
+
+// ── 7h. AI Assistant Logs ─────────────────
+// Individual message turns within a conversation.
+// Kept separate from the Learning Platform's AiChatMessage model.
+model AiAssistantLog {
+  id             String                  @id @default(cuid())
+  conversationId String
+  conversation   AiAssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    AiAssistantRole // USER or ASSISTANT
+  content String          // Full message text
+
+  // ── Token accounting ─────────────────────────────────────────
+  promptTokens     Int? // tokens in the user's prompt
+  completionTokens Int? // tokens in the AI's response
+  totalTokens      Int? // total billed tokens for this turn
+
+  // ── AI provider metadata ──────────────────────────────────────
+  modelUsed String? // e.g. "gemini-1.5-flash", "fiqhi-guardrail"
+  latencyMs Int?    // response time in milliseconds
+
+  // ── Topic / routing classification ───────────────────────────
+  // Set by the guardrail classifiers before any LLM call.
+  topicCategory String?  // FatwaCategory value: "PRAYER_WORSHIP", "FINANCIAL", etc.
+  isRedirected  Boolean  @default(false) // true = fiqhi scholar redirect issued
+  isAdversarial Boolean  @default(false) // true = adversarial bypass attempt detected
+  isOutOfScope  Boolean  @default(false) // true = query had no relevant RAG results
+
+  // ── Retrieval metadata ────────────────────────────────────────
+  retrievedChunkCount Int?   // number of RAG chunks retrieved
+  topSimilarityScore  Float? // highest cosine similarity score in the result set
+
+  // ── Error / status tracking ───────────────────────────────────
+  // null = success | "FIQHI_REDIRECT" | "SCOPE_REJECTED" | "TIMEOUT" |
+  // "PROVIDER_ERROR" | "RATE_LIMITED"
+  errorStatus String?
+
+  // ── Admin flagging ────────────────────────────────────────────
+  isFlagged Boolean @default(false) // admin flagged this turn for review
+
+  // ── User feedback ──────────────────────────────────────────────
+  rating          String?  // "helpful" | "not_helpful" | "inappropriate"
+  feedbackComment String?  // optional free-text comment
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])   // chronological message fetch
+  @@index([createdAt])                   // admin logs: newest first
+  @@index([isRedirected])                // filter scholar redirects
+  @@index([isAdversarial])               // filter adversarial attempts
+  @@index([isOutOfScope])                // filter out-of-scope rejections
+  @@index([isFlagged])                   // filter flagged log entries
+  @@index([topicCategory])               // filter by fiqhi category
+  @@index([errorStatus])                 // filter by error status
+  @@index([rating])                      // filter by user feedback rating
+  @@map("ai_assistant_logs")
+}
+
+// ==========================================
+// 8. RAG KNOWLEDGE BASE
+// ==========================================
+
+// ── 8a. RAG Documents ─────────────────────
+// Top-level source documents ingested into the RAG knowledge base.
+// Each document corresponds to one approved Zufishan content source.
+model RagDocument {
+  id         String        @id @default(cuid())
+  sourceType RagSourceType
+
+  // Optional FK to a platform entity (e.g., Course)
+  sourceId   String? // e.g., Course.id for COURSE_METADATA
+
+  title    String  // Human-readable title for citation
+  content  String  // Full raw text (used during ingestion only)
+  url      String? // Deep-link into the platform UI (optional)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks RagChunk[]
+
+  @@index([sourceType, isActive])
+  @@index([sourceId])
+  @@map("rag_documents")
+}
+
+// ── 8b. RAG Chunks ────────────────────────
+// Text chunks derived from RagDocuments. Each chunk carries its
+// embedding vector (stored as JSONB float array) for semantic search.
+model RagChunk {
+  id         String      @id @default(cuid())
+  documentId String
+  document   RagDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex Int    // 0-based position within the parent document
+  content    String // The raw text of this chunk
+
+  // Embedding stored as JSON array of floats (e.g. 768-dim Gemini embedding)
+  // Cosine similarity is computed in-application over a pre-filtered candidate set.
+  embedding  Json
+
+  tokenCount Int? // Approximate token count of this chunk
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, chunkIndex]) // one chunk per index per document
+  @@index([documentId])
+  @@map("rag_chunks")
 }
