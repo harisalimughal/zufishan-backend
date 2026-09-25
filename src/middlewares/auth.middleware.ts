@@ -1,38 +1,57 @@
-import { Request, Response, NextFunction } from 'express'
-import { verifyToken } from '../utils/jwt'
+import { Request, Response, NextFunction } from "express";
+import { verifyToken } from "../utils/jwt";
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+// Middleware used to protect authenticated routes
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const authHeader = req.headers.authorization
+    // Get Authorization header
+    const authHeader = req.headers.authorization;
+
+    // Check if Authorization header exists
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: 'No token provided',
-      })
+        message: "No token provided",
+      });
     }
 
-    const token = authHeader.split(' ')[1]
-    if (!token) {
+    // Expected format:
+    // Authorization: Bearer YOUR_TOKEN
+    const [scheme, token] = authHeader.split(" ");
+
+    // Check if the format is correct
+    if (scheme !== "Bearer" || !token) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid token format',
-      })
+        message: "Invalid token format",
+      });
     }
 
-    const decoded = verifyToken(token)
+    // Verify the JWT token
+    const decoded = verifyToken(token);
+
+    // Token is invalid or expired
     if (!decoded) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired token',
-      })
+        message: "Invalid or expired token",
+      });
     }
 
-    ;(req as any).user = decoded
-    return next()
+    // Attach decoded user information to the request
+    (req as any).user = decoded;
+
+    // Continue to the next middleware/controller
+    return next();
+
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication failed',
-    })
+      message: "Authentication failed",
+    });
   }
-}
+};

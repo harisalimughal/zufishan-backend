@@ -14,6 +14,13 @@ import userRoutes from "./user.routes";
 import achievementRoutes from "./achievement.routes";
 import enrollmentRoutes from "./enrollment.routes";
 import attendanceRoutes from "./attendance.routes";
+import marketplaceAuthRoutes from "./marketplace-auth.routes";
+import marketplaceVendorRoutes from "./marketplace-vendor.routes";
+import marketplaceProductRoutes from "./marketplace-product.routes";
+import marketplaceCartRoutes from "./marketplace-cart.routes";
+import marketplaceOrderRoutes from "./marketplace-order.routes";
+import marketplacePaymentRoutes from "./marketplace-payment.routes";
+import marketplaceExtensionRoutes from "./marketplace-extension.routes";
 
 const router = Router();
 
@@ -41,6 +48,16 @@ router.use("/attendance", attendanceRoutes);
 router.use("/messages", messageRoutes);
 router.use("/group-messages", groupMessageRoutes);
 router.use("/calendar-events", calendarEventRoutes);
+
+// Marketplace
+
+router.use("/marketplace", marketplaceAuthRoutes);
+router.use("/marketplace/vendors", marketplaceVendorRoutes);
+router.use("/marketplace/products", marketplaceProductRoutes);
+router.use("/marketplace/cart", marketplaceCartRoutes);
+router.use("/marketplace/orders", marketplaceOrderRoutes);
+router.use("/marketplace/payments", marketplacePaymentRoutes);
+router.use("/marketplace", marketplaceExtensionRoutes);
 
 router.get("/health", (req, res) => {
   res.status(200).json({

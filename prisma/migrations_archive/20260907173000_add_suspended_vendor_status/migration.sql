@@ -1,0 +1,1 @@
+ALTER TYPE "VendorApprovalStatus" ADD VALUE IF NOT EXISTS 'SUSPENDED';

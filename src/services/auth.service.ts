@@ -1,7 +1,7 @@
 import { authRepository } from '../repositories/auth.repository'
 import { ApiError } from '../utils/apiError'
 import { comparePassword, hashPassword } from '../utils/password'
-import { generateToken, generateRefreshToken, verifyRefreshToken, generateTokenWithExpiry } from '../utils/jwt'
+import { generateToken, generateRefreshToken, verifyToken, verifyRefreshToken, generateTokenWithExpiry } from '../utils/jwt'
 
 const ActivityType = {
   LOGIN: 'LOGIN',
@@ -186,7 +186,7 @@ export const authService = {
   },
 
   resetPassword: async (token: string, newPassword: string) => {
-    const decoded = verifyRefreshToken(token)
+    const decoded = verifyToken(token)
     if (!decoded) {
       throw ApiError.unauthorized('Invalid or expired reset token')
     }
